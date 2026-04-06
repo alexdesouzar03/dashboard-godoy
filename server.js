@@ -83,6 +83,29 @@ app.patch('/api/pedidos/:id/status', async (req, res) => {
   }
 });
 
+// Salvar pedido parcial (menos de 4h)
+app.post('/api/pedidos/parcial', async (req, res) => {
+  const { telefone, nome_cliente, itens, observacoes, status } = req.body;
+  try {
+    // Verifica se já existe pedido aguardando horário para esse telefone
+    const existing = await pool.query(
+      "SELECT id FROM pedidos WHERE telefone = $1 AND status = 'aguardando_horario'",
+      [telefone]
+    );
+    if (existing.rows.length > 0) {
+      return res.json({ success: true, id: existing.rows[0].id });
+    }
+    const result = await pool.query(
+      `INSERT INTO pedidos (telefone, nome_cliente, itens, observacoes, status, criado_em)
+       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
+      [telefone, nome_cliente, itens, observacoes, status || 'aguardando_horario']
+    );
+    res.json({ success: true, id: result.rows[0].id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Confirmar horário (pedido com menos de 4h)
 app.post('/api/pedidos/:id/confirmar-horario', async (req, res) => {
   const { id } = req.params;
