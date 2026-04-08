@@ -355,11 +355,17 @@
     <div class="form-group" style="margin-bottom:10px"><label>Nome do Cliente</label><input id="edit-nome"></div>
     <div class="form-group" style="margin-bottom:10px"><label>Itens do Pedido</label><textarea id="edit-itens" rows="3"></textarea></div>
     <div class="form-group" style="margin-bottom:10px"><label>Agendamento</label><input id="edit-agendamento"></div>
+    <div class="form-group" style="margin-bottom:10px"><label>Tipo</label>
+      <select id="edit-tipo" onchange="toggleEndereco()">
+        <option value="retirada">🏪 Retirada na loja</option>
+        <option value="entrega">🛵 Entrega</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:10px" id="campo-endereco" style="display:none"><label>Endereço de Entrega</label><input id="edit-endereco" placeholder="Rua, número, bairro"></div>
     <div class="form-group" style="margin-bottom:10px"><label>Forma de Pagamento</label>
       <select id="edit-pagamento"><option>Pix</option><option>Cartão de crédito</option><option>Cartão de débito</option><option>Dinheiro</option></select>
     </div>
     <div class="form-group" style="margin-bottom:10px"><label>Valor Total (R$)</label><input type="number" id="edit-valor" step="0.01"></div>
-    <div class="form-group" style="margin-bottom:10px"><label>Endereço de Entrega</label><input id="edit-endereco"></div>
     <div class="modal-footer">
       <button class="btn btn-cinza" onclick="fecharModal()">Cancelar</button>
       <button class="btn btn-verde" onclick="salvarEdicao()">💾 Salvar</button>
@@ -520,21 +526,31 @@ function abrirEditar(id) {
   document.getElementById('edit-nome').value = p.nome_cliente || '';
   document.getElementById('edit-itens').value = p.itens || '';
   document.getElementById('edit-agendamento').value = p.observacoes || '';
+  document.getElementById('edit-tipo').value = p.tipo || 'retirada';
   document.getElementById('edit-pagamento').value = p.forma_pagamento || 'Pix';
   document.getElementById('edit-valor').value = p.valor_total || '';
   document.getElementById('edit-endereco').value = p.endereco || '';
+  toggleEndereco();
   document.getElementById('modal-editar').classList.add('show');
+}
+
+function toggleEndereco() {
+  const tipo = document.getElementById('edit-tipo').value;
+  const campo = document.getElementById('campo-endereco');
+  campo.style.display = tipo === 'entrega' ? 'block' : 'none';
 }
 
 async function salvarEdicao() {
   const id = document.getElementById('modal-id').value;
+  const tipo = document.getElementById('edit-tipo').value;
   const dados = {
     nome_cliente: document.getElementById('edit-nome').value,
     itens: document.getElementById('edit-itens').value,
     observacoes: document.getElementById('edit-agendamento').value,
+    tipo: tipo,
     forma_pagamento: document.getElementById('edit-pagamento').value,
     valor_total: document.getElementById('edit-valor').value || null,
-    endereco: document.getElementById('edit-endereco').value
+    endereco: tipo === 'entrega' ? document.getElementById('edit-endereco').value : null
   };
   try { await fetch(`/api/pedidos/${id}/editar`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(dados)}); fecharModal(); mostrarNotificacao('✅ Pedido editado!'); await carregarPedidos(); }
   catch(e) { mostrarNotificacao('Erro ao salvar',true); }
