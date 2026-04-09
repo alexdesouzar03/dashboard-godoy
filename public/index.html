@@ -251,7 +251,18 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
   </div>
 </div>
 
-<!-- CATEGORIAS (oculta — mantida para compatibilidade) -->
+<!-- COMBOS -->
+<div id="tab-combos" class="tc">
+  <div class="gc">
+    <div class="gcard">
+      <div class="gtt">🎁 Combos <button class="btn bc" onclick="abrirCombo()">+ Novo Combo</button></div>
+      <div class="gdesc">Monte combos com produtos do cardápio com preço especial.</div>
+      <div class="pg" id="lista-combos"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORIAS (oculta — integrada ao Cardápio) -->
 <div id="tab-categorias" class="tc"></div>
 
 <!-- ENTREGADORES -->
@@ -670,7 +681,7 @@ async function carregarCardapioUnificado() {
 
     let html = (cats||[]).map(cat => {
       const prods = prodsPorCat[cat.id] || [];
-      const dias = (cat.dias_semana || [0,1,2,3,4,5,6]).map(d => ['D','S','T','Q','Q','S','S'][d]).join('');
+      const diasRaw = cat.dias_semana; const diasArr = Array.isArray(diasRaw) ? diasRaw : String(diasRaw||'{0,1,2,3,4,5,6}').replace(/[{}]/g,'').split(',').map(Number).filter(n=>!isNaN(n)); const dias = diasArr.map(d => ['D','S','T','Q','Q','S','S'][d]||'?').join('');
       const canais = [cat.permite_delivery?'🛵':'',cat.permite_retirada?'🏪':'',cat.permite_salao?'🍽️':''].filter(Boolean).join(' ');
       const status = cat.disponivel
         ? '<span style="font-size:9px;padding:1px 6px;background:#d1e7dd;color:#0a3622;border-radius:100px">Aberta</span>'
@@ -995,17 +1006,6 @@ async function editCombo(id){const cs=await api('/api/combos');const cb=cs?.find
 async function delCombo(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/combos/${id}`,{method:'DELETE'});nt('Removido.');carregarCombos()}catch(e){nt('Erro',true)}}
 
 // ===== PRODUTOS =====
-async function carregarCardapioUnificado(){
-  try{
-    const cats=await api('/api/categorias');
-    const f=document.getElementById('filt-cat');
-    f.innerHTML=`<button style="padding:4px 10px;border-radius:100px;border:2px solid var(--m);background:${filtroCatProd==='todas'?'var(--m)':'transparent'};color:${filtroCatProd==='todas'?'#fff':'var(--m)'};font-size:10px;cursor:pointer;font-weight:500" onclick="setFP('todas',this)">Todos</button>`+(cats||[]).map(c=>`<button style="padding:4px 10px;border-radius:100px;border:2px solid var(--m);background:${filtroCatProd===c.nome?'var(--m)':'transparent'};color:${filtroCatProd===c.nome?'#fff':'var(--m)'};font-size:10px;cursor:pointer;font-weight:500" onclick="setFP('${c.nome}',this)">${c.nome}</button>`).join('');
-    const sel=document.getElementById('pp-cat');
-    sel.innerHTML='<option value="">Selecione...</option>'+(cats||[]).map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
-    const ps=await api('/api/produtos');
-    const fil=filtroCatProd==='todas'?ps:ps?.filter(p=>p.categoria===filtroCatProd);
-    const con=document.getElementById('lista-prods');
-    if(!(fil||[]).length){con.innerHTML='<div class="es"><p>Nenhum produto.</p></div>';return}
     con.innerHTML=(fil||[]).map(p=>`<div class="pc ${!p.disponivel?'off':''}">
       <div class="pim">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}" loading="lazy">`:'🍞'}</div>
       <div class="pb">
@@ -1049,9 +1049,8 @@ async function delGrupo(id){if(!confirm('Remover grupo?'))return;try{await api(`
 async function delItem(id){try{await api(`/api/complementos/itens/${id}`,{method:'DELETE'});await carregarComp()}catch(e){nt('Erro',true)}}
 
 // ===== CATEGORIAS =====
-async function carregarCardapioUnificado(){try{const c=await api('/api/categorias');const el=document.getElementById('lista-cats');el.innerHTML=(c||[]).length?(c||[]).map(x=>{const dias=(x.dias_semana||[0,1,2,3,4,5,6]).map(d=>DIAS[d]).join(', ');return`<div class="ir" style="flex-wrap:wrap;gap:6px"><div class="in"><div class="inm">${x.disponivel?'🟢':'🔴'} ${x.nome}</div><div class="ins">${x.descricao||'—'} · ${dias} · ${x.horario_inicio?.slice(0,5)||'06:00'}-${x.horario_fim?.slice(0,5)||'20:00'}</div><div style="display:flex;gap:3px;margin-top:3px">${x.permite_delivery?'<span style="font-size:9px;padding:1px 5px;background:#d1e7dd;color:#0a3622;border-radius:100px">🛵</span>':''}${x.permite_retirada?'<span style="font-size:9px;padding:1px 5px;background:#cfe2ff;color:#084298;border-radius:100px">🏪</span>':''}${x.permite_salao?'<span style="font-size:9px;padding:1px 5px;background:#fef3cd;color:#856404;border-radius:100px">🍽️</span>':''}</div></div><div class="ia"><div class="tmini" onclick="tgCat(${x.id},${!x.disponivel})"><div class="tm ${x.disponivel?'on':''}"></div></div><button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editCat(${x.id})">✏️</button><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delCat(${x.id},'${x.nome.replace(/'/g,"\\'")}')">🗑️</button></div></div>`}).join(''):'<div class="es"><p>Nenhuma categoria.</p></div>'}catch(e){}}
 async function tgCat(id,d){try{await api(`/api/categorias/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'🟢':'🔴');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-function abrirCategoria(c=null){document.getElementById('mct-id').value=c?.id||'';document.getElementById('mct-tt').textContent=c?'✏️ Editar':'📂 Nova Categoria';document.getElementById('mct-nom').value=c?.nome||'';document.getElementById('mct-dsc').value=c?.descricao||'';document.getElementById('mct-hi').value=c?.horario_inicio?.slice(0,5)||'06:00';document.getElementById('mct-hf').value=c?.horario_fim?.slice(0,5)||'20:00';const dias=c?.dias_semana||[0,1,2,3,4,5,6];document.querySelectorAll('#mct-dias .dia').forEach(b=>b.classList.toggle('on',dias.includes(parseInt(b.dataset.d))));const cans=document.querySelectorAll('#mct-canais .canal');cans[0].classList.toggle('on',c?.permite_delivery!==false);cans[1].classList.toggle('on',c?.permite_retirada!==false);cans[2].classList.toggle('on',c?.permite_salao||false);document.getElementById('mo-cat').classList.add('on')}
+function abrirCategoria(c=null){document.getElementById('mct-id').value=c?.id||'';document.getElementById('mct-tt').textContent=c?'✏️ Editar':'📂 Nova Categoria';document.getElementById('mct-nom').value=c?.nome||'';document.getElementById('mct-dsc').value=c?.descricao||'';document.getElementById('mct-hi').value=c?.horario_inicio?.slice(0,5)||'06:00';document.getElementById('mct-hf').value=c?.horario_fim?.slice(0,5)||'20:00';const diasRaw=c?.dias_semana;const dias=Array.isArray(diasRaw)?diasRaw:String(diasRaw||'{0,1,2,3,4,5,6}').replace(/[{}]/g,'').split(',').map(Number).filter(n=>!isNaN(n));document.querySelectorAll('#mct-dias .dia').forEach(b=>b.classList.toggle('on',dias.includes(parseInt(b.dataset.d))));const cans=document.querySelectorAll('#mct-canais .canal');cans[0].classList.toggle('on',c?.permite_delivery!==false);cans[1].classList.toggle('on',c?.permite_retirada!==false);cans[2].classList.toggle('on',c?.permite_salao||false);document.getElementById('mo-cat').classList.add('on')}
 async function editCat(id){const c=await api('/api/categorias');const x=c?.find(y=>y.id===id);if(x)abrirCategoria(x)}
 async function saveCat(){const id=document.getElementById('mct-id').value;const dias=[];document.querySelectorAll('#mct-dias .dia.on').forEach(b=>dias.push(parseInt(b.dataset.d)));const cans=document.querySelectorAll('#mct-canais .canal');const d={nome:document.getElementById('mct-nom').value,descricao:document.getElementById('mct-dsc').value,horario_inicio:document.getElementById('mct-hi').value,horario_fim:document.getElementById('mct-hf').value,dias_semana:'{'+dias.join(',')+'}',permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on')};if(!d.nome)return nt('Informe o nome',true);try{if(id)await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify(d)});else await api('/api/categorias',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Categoria salva!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function delCat(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/categorias/${id}`,{method:'DELETE'});nt('Removida.');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
