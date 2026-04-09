@@ -1006,32 +1006,6 @@ async function editCombo(id){const cs=await api('/api/combos');const cb=cs?.find
 async function delCombo(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/combos/${id}`,{method:'DELETE'});nt('Removido.');carregarCombos()}catch(e){nt('Erro',true)}}
 
 // ===== PRODUTOS =====
-    con.innerHTML=(fil||[]).map(p=>`<div class="pc ${!p.disponivel?'off':''}">
-      <div class="pim">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}" loading="lazy">`:'🍞'}</div>
-      <div class="pb">
-        <div class="pcat">${p.categoria||'—'}</div>
-        <div class="pnom">${p.destaque?'⭐ ':''}${p.nome}</div>
-        ${p.descricao?`<div class="pdsc">${p.descricao}</div>`:''}
-        <div class="ppr">R$ ${Number(p.preco).toFixed(2)} <span class="pun">/ ${p.unidade}</span></div>
-        <div class="ptags">
-          <span class="ptag">${p.tipo_pedido==='agendamento'?'📅':p.tipo_pedido==='hora'?'⚡':'📅⚡'}</span>
-          ${p.permite_delivery?'<span class="ptag on">🛵</span>':'<span class="ptag" style="background:#f8d7da;color:#842029">🚫🛵</span>'}
-          ${p.permite_retirada?'<span class="ptag on">🏪</span>':''}
-          ${p.permite_salao?'<span class="ptag on">🍽️</span>':''}
-          ${p.total_vendas>0?`<span class="ptag">🔥${p.total_vendas}</span>`:''}
-        </div>
-      </div>
-      <div class="pft">
-        <div class="tmini" onclick="tgProd(${p.id},${!p.disponivel})"><div class="tm ${p.disponivel?'on':''}"></div><span>${p.disponivel?'Disp.':'Indisp.'}</span></div>
-        <div style="display:flex;gap:3px">
-          <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editProd(${p.id})">✏️</button>
-          <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="abrirComp(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🧩</button>
-          <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delProd(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🗑️</button>
-        </div>
-      </div>
-    </div>`).join('');
-  }catch(e){console.error(e)}
-}
 function setFP(c){filtroCatProd=c;carregarCardapioUnificado()}
 async function tgProd(id,d){try{await api(`/api/produtos/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'✅':'⛔');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;document.getElementById('mo-prod').classList.add('on')}
