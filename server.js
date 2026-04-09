@@ -23,20 +23,22 @@ async function regHist(pid,acao,desc,ant,nov) {
 }
 
 // ===== AUTENTICAÇÃO =====
-// Middleware de autenticação
+// Middleware de autenticação — só protege /api/ (exceto rotas públicas)
 async function auth(req, res, next) {
-  // Rotas públicas
-  const pub = ['/api/login', '/api/portal/', '/portal', '/api/cardapio'];
+  // Só aplica em rotas de API
+  if (!req.path.startsWith('/api/')) return next();
+
+  // Rotas de API públicas (sem token)
+  const pub = ['/api/login', '/api/portal/', '/api/cardapio'];
   if (pub.some(p => req.path.startsWith(p))) return next();
-  
+
   const token = req.headers['x-token'] || req.query.token;
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
-  
+
   try {
     const r = await pool.query("SELECT s.*,u.nome,u.nivel FROM sessoes_painel s JOIN usuarios_painel u ON s.usuario_id=u.id WHERE s.token=$1 AND s.expira_em>NOW()",[token]);
     if (!r.rows[0]) return res.status(401).json({ error: 'Sessão expirada' });
     req.usuario = r.rows[0];
-    // Renova sessão
     await pool.query("UPDATE sessoes_painel SET expira_em=NOW()+INTERVAL '8 hours' WHERE token=$1",[token]);
     next();
   } catch(e) { res.status(500).json({ error: e.message }); }
