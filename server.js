@@ -177,6 +177,8 @@ app.post('/api/pedidos/:id/confirmar-horario', async (req, res) => {
     await pool.query("UPDATE pedidos SET status='aguardando_pagamento' WHERE id=$1",[id]);
     await pool.query("UPDATE estado_pedido SET etapa='aguardando_tipo',atualizado_em=NOW() WHERE telefone=$1",[p.telefone]);
     await enviarWA(p.telefone,`✅ Ótimas notícias! Conseguimos atender! 😊\n\n📍 Retirada na loja ou entrega?\n\n🏪 *1* — Retirada\n🛵 *2* — Entrega`);
+    const pedAtual=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
+    if(pedAtual) await enviarResumodoPedido(pedAtual);
     res.json({success:true});
   } catch(e) { res.status(500).json({error:e.message}); }
 });
@@ -317,6 +319,71 @@ app.delete('/api/entregadores/:id',async(req,res)=>{try{await pool.query('DELETE
 app.post('/api/entregadores/:id/chamar',async(req,res)=>{const{pedido_id}=req.body;try{const ent=(await pool.query('SELECT * FROM entregadores WHERE id=$1',[req.params.id])).rows[0];const ped=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[pedido_id])).rows[0];if(!ent||!ped)return res.status(404).json({error:'Não encontrado'});const msg=`🛵 *NOVO PEDIDO PARA ENTREGA*\n\n📦 *Pedido #${ped.id}*\n👤 ${ped.nome_cliente||'—'}\n📱 ${ped.telefone}\n📍 ${ped.endereco||'—'}\n🛍️ ${ped.itens||'—'}\n💳 ${ped.forma_pagamento||'—'}\n💰 R$ ${ped.valor_total?Number(ped.valor_total).toFixed(2):'—'}`;await enviarWA(ent.telefone,msg);await pool.query('UPDATE entregadores SET total_entregas=total_entregas+1 WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
 // ===== PONTOS =====
+// Formata e envia resumo do pedido para o cliente
+async function enviarResumodoPedido(pedido) {
+  try {
+    const p = pedido;
+    const agora = new Date();
+    const dataFormatada = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const nomeCliente = p.nome_cliente?.split(' ')[0] || 'Cliente';
+    const valorPedido = p.valor_total ? `R$ ${Number(p.valor_total).toFixed(2)}` : '—';
+    const portalLink = 'https://sublime-insight-production.up.railway.app/portal';
+
+    let msg = '';
+    if (p.tipo === 'entrega') {
+      // Calcular taxa de entrega se disponível
+      let taxaEntrega = '—';
+      let total = valorPedido;
+      try {
+        if (p.endereco) {
+          const fr = await pool.query('SELECT preco FROM faixas_entrega WHERE ativo=true LIMIT 1');
+          if (fr.rows[0]) {
+            const taxa = Number(fr.rows[0].preco);
+            taxaEntrega = `R$ ${taxa.toFixed(2)}`;
+            const totalNum = (Number(p.valor_total) || 0) + taxa;
+            total = `R$ ${totalNum.toFixed(2)}`;
+          }
+        }
+      } catch(e) {}
+
+      msg = `Oi, ${nomeCliente}! 😃\n\nRecebemos seu pedido! ✅\n\n` +
+        `#️⃣ *Nº do pedido:* #${p.id}\n` +
+        `📅 *Data do pedido:* ${dataFormatada} às ${horaFormatada}\n\n` +
+        `👤 *Cliente:* ${p.nome_cliente || '—'}\n` +
+        `📞 *Contato:* ${p.telefone || '—'}\n\n` +
+        `📍 *Endereço de entrega:* ${p.endereco || '—'}\n` +
+        `⏳ *Previsão de entrega:* Em breve entraremos em contato\n\n` +
+        `🛒 *Itens do Pedido:*\n${p.itens || '—'}\n\n` +
+        `💵 *Valor do pedido:* ${valorPedido}\n` +
+        `🚚 *Taxa de entrega:* ${taxaEntrega}\n` +
+        `💲 *Total:* ${total}\n\n` +
+        `💳 *Forma de pagamento:* ${p.forma_pagamento || '—'}\n\n` +
+        `Você também pode acompanhar seu pedido pelo link: ${portalLink}\n\n` +
+        `Até mais! 😊\n_Padaria e Confeitaria Godoy_`;
+    } else {
+      const enderecoPadaria = await getConfig('endereco_padaria') || 'R. Aquiles, 231, Vila Shangri-Lá, Apucarana/PR';
+      const agendamento = p.observacoes || (p.data_agendamento ? new Date(p.data_agendamento).toLocaleString('pt-BR') : '—');
+
+      msg = `Oi, ${nomeCliente}! 😃\n\nRecebemos seu pedido! ✅\n\n` +
+        `#️⃣ *Nº do pedido:* #${p.id}\n` +
+        `📅 *Data do pedido:* ${dataFormatada} às ${horaFormatada}\n\n` +
+        `👤 *Cliente:* ${p.nome_cliente || '—'}\n` +
+        `📞 *Contato:* ${p.telefone || '—'}\n\n` +
+        `📍 *Local de retirada:* ${enderecoPadaria.toUpperCase()}\n` +
+        `📅 *Data do agendamento:* ${agendamento}\n\n` +
+        `🛒 *Itens do Pedido:*\n${p.itens || '—'}\n\n` +
+        `💵 *Valor do pedido:* ${valorPedido}\n` +
+        `💲 *Total:* ${valorPedido}\n\n` +
+        `💳 *Forma de pagamento:* ${p.forma_pagamento || '—'}\n\n` +
+        `Você também pode acompanhar seu pedido pelo link: ${portalLink}\n\n` +
+        `Até mais! 😊\n_Padaria e Confeitaria Godoy_`;
+    }
+
+    await enviarWA(p.telefone, msg);
+  } catch(e) { console.error('Resumo WA:', e.message); }
+}
+
 async function gerarPontos(tel,nome,val,pedId){try{const a=await getConfig('cashback_ativo');if(a!=='true')return;const pr=parseInt(await getConfig('pontos_por_real')||'1');const pts=Math.floor(val*pr);if(pts<=0)return;await pool.query(`INSERT INTO pontos_cashback(telefone,nome_cliente,pontos,total_gasto)VALUES($1,$2,$3,$4)ON CONFLICT(telefone)DO UPDATE SET pontos=pontos_cashback.pontos+$3,total_gasto=pontos_cashback.total_gasto+$4,nome_cliente=$2,atualizado_em=NOW()`,[tel,nome,pts,val]);await pool.query('INSERT INTO pontos_historico(telefone,acao,pontos,descricao,pedido_id)VALUES($1,$2,$3,$4,$5)',[tel,'ganho',pts,`Pedido #${pedId}`,pedId]);const pc=(await pool.query('SELECT pontos FROM pontos_cashback WHERE telefone=$1',[tel])).rows[0];if(pc){const t=pc.pontos;const nv=t>=(await getConfig('nivel_diamante_pontos')||5000)?'diamante':t>=(await getConfig('nivel_ouro_pontos')||2000)?'ouro':t>=(await getConfig('nivel_prata_pontos')||500)?'prata':'bronze';await pool.query('UPDATE pontos_cashback SET nivel=$1 WHERE telefone=$2',[nv,tel])}await enviarWA(tel,`⭐ Você ganhou *${pts} pontos* neste pedido! Acumule e troque por descontos. 🎉`)}catch(e){}}
 app.get('/api/pontos',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM pontos_cashback ORDER BY pontos DESC LIMIT 100')).rows)}catch(e){res.status(500).json({error:e.message})}});
 app.get('/api/pontos/:telefone',async(req,res)=>{try{const r=await pool.query('SELECT * FROM pontos_cashback WHERE telefone=$1',[req.params.telefone]);res.json(r.rows[0]||{pontos:0,nivel:'bronze',total_gasto:0})}catch(e){res.status(500).json({error:e.message})}});
@@ -335,6 +402,23 @@ app.delete('/api/numeros-bloqueados/:telefone',async(req,res)=>{try{await pool.q
 // ===== ZONAS =====
 app.get('/api/zonas-entrega',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM zonas_entrega WHERE ativo=TRUE ORDER BY criado_em')).rows)}catch(e){res.status(500).json({error:e.message})}});
 app.post('/api/zonas-entrega',async(req,res)=>{const{nome,tipo,lat,lng,raio_km,cor}=req.body;try{const r=await pool.query('INSERT INTO zonas_entrega(nome,tipo,lat,lng,raio_km,cor)VALUES($1,$2,$3,$4,$5,$6)RETURNING *',[nome,tipo,lat,lng,raio_km,cor||'#2d6a4f']);res.json({success:true,zona:r.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.patch('/api/zonas-entrega/:id', async (req, res) => {
+  const {nome,tipo,lat,lng,raio_km,cor,ativo}=req.body;
+  try {
+    const f=[]; const v=[]; let i=1;
+    if(nome!==undefined){f.push(`nome=$${i++}`);v.push(nome)}
+    if(tipo!==undefined){f.push(`tipo=$${i++}`);v.push(tipo)}
+    if(lat!==undefined){f.push(`lat=$${i++}`);v.push(lat)}
+    if(lng!==undefined){f.push(`lng=$${i++}`);v.push(lng)}
+    if(raio_km!==undefined){f.push(`raio_km=$${i++}`);v.push(raio_km)}
+    if(cor!==undefined){f.push(`cor=$${i++}`);v.push(cor)}
+    if(ativo!==undefined){f.push(`ativo=$${i++}`);v.push(ativo)}
+    if(!f.length) return res.json({success:true});
+    v.push(req.params.id);
+    await pool.query(`UPDATE zonas_entrega SET ${f.join(',')} WHERE id=$${i}`,v);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 app.delete('/api/zonas-entrega/:id',async(req,res)=>{try{await pool.query('UPDATE zonas_entrega SET ativo=FALSE WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
 // ===== FAIXAS =====
@@ -395,8 +479,10 @@ app.post('/api/portal/pedido',async(req,res)=>{
     const r=await pool.query('INSERT INTO pedidos(telefone,nome_cliente,itens,observacoes,tipo,endereco,forma_pagamento,valor_total,status,criado_em)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())RETURNING id',[telefone,nome_cliente,typeof itens==='string'?itens:itens.map(i=>`${i.qtd}x ${i.nome}`).join(', '),observacoes,tipo||'retirada',endereco,forma_pagamento,valor_total,'aguardando_pagamento']);
     const pid=r.rows[0].id;
     const dono=await getConfig('whatsapp_negocio')||'5543991397163';
-    const pix=await getConfig('chave_pix')||'07.215.675/0001-05';
-    await enviarWA(telefone,`✅ *Pedido #${pid} recebido!*\n\n💰 R$ ${Number(valor_total).toFixed(2)}\n\nEnvie o comprovante Pix:\n🔑 ${pix}`);
+    // Envia resumo formatado ao cliente
+    const pedCriado=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[pid])).rows[0];
+    if(pedCriado) await enviarResumodoPedido(pedCriado);
+    // Notifica dono
     await enviarWA(dono,`🔔 *NOVO PEDIDO PORTAL #${pid}*\n👤 ${nome_cliente} | 📱 ${telefone}\n💰 R$ ${Number(valor_total).toFixed(2)}\n\nhttps://sublime-insight-production.up.railway.app`);
     res.json({success:true,pedidoId:pid});
   }catch(e){res.status(500).json({error:e.message})}
