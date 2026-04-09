@@ -1,1022 +1,492 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Godoy — Painel</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-:root{--m:#3d1f0a;--c:#c17f3a;--cr:#fdf6ed;--w:#fff;--g:#8a7f75;--v:#2d6a4f;--r:#c1392b;--a:#e8a020;--b:#1a5276;--o:#e67e22}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'DM Sans',sans-serif;background:var(--cr);color:var(--m)}
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+const path = require('path');
+const crypto = require('crypto');
 
-/* LOGIN */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--m)}
-.login-box{background:#fff;border-radius:16px;padding:36px;width:90%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.login-logo{font-family:'Playfair Display',serif;font-size:32px;color:var(--c);margin-bottom:4px}
-.login-sub{font-size:12px;color:var(--g);letter-spacing:2px;text-transform:uppercase;margin-bottom:28px}
-.login-field{width:100%;padding:11px 14px;border:1.5px solid rgba(61,31,10,.15);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--m);background:var(--cr);outline:none;margin-bottom:12px;transition:border-color .2s}
-.login-field:focus{border-color:var(--c);background:#fff}
-.login-btn{width:100%;background:var(--c);color:#fff;border:none;padding:12px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;margin-top:4px}
-.login-btn:hover{background:#a66d2e}
-.login-err{color:var(--r);font-size:12px;margin-top:8px}
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '15mb' }));
 
-/* PAINEL */
-.painel-wrap{display:none}
-header{background:var(--m);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 4px 20px rgba(61,31,10,.3)}
-.logo{display:flex;align-items:center;gap:9px}
-.logo-img{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--c);display:none}
-.logo-txt{font-family:'Playfair Display',serif;color:var(--c);font-size:18px}
-.logo-sub{color:rgba(255,255,255,.38);font-size:9px;display:block;letter-spacing:3px;text-transform:uppercase}
-.hr{display:flex;align-items:center;gap:6px}
-.dh{color:rgba(255,255,255,.38);font-size:10px}
-.usuario-info{color:rgba(255,255,255,.6);font-size:11px;display:flex;align-items:center;gap:5px}
-.btn{padding:5px 11px;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;font-weight:500;transition:all .2s}
-.bc{background:var(--c);color:#fff}.bc:hover{background:#a66d2e}
-.bv{background:var(--v);color:#fff}.bv:hover{background:#215c40}
-.br{background:transparent;color:var(--r);border:1px solid var(--r)}.br:hover{background:var(--r);color:#fff}
-.ba{background:var(--b);color:#fff}.ba:hover{background:#154360}
-.bg{background:var(--g);color:#fff}.bg:hover{background:#6d6460}
-.bo{background:var(--o);color:#fff}.bo:hover{background:#ca6f1e}
-.bm{background:var(--m);color:#fff}.bm:hover{background:#2d1608}
-.bout{background:transparent;color:var(--m);border:1px solid rgba(61,31,10,.2)}.bout:hover{background:var(--cr)}
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const ZAPI_URL = 'https://api.z-api.io/instances/3F0EB5CA0ADBB327C02C169647C2B2C3/token/1EE074A50DF3F4E170483A75/send-text';
+const ZAPI_TOKEN = 'F88f02816c1a84f1388071b54e6a17c27S';
 
-.tabs{background:var(--m);padding:0 16px;display:flex;gap:1px;border-top:1px solid rgba(255,255,255,.07);overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tb{padding:8px 12px;background:transparent;border:none;color:rgba(255,255,255,.38);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;font-weight:500;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
-.tb:hover{color:rgba(255,255,255,.7)}.tb.on{color:var(--c);border-bottom-color:var(--c)}
-.tc{display:none}.tc.on{display:block}
-
-/* KANBAN DUAL */
-.kanban-header{padding:10px 16px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.kanban-seg{display:flex;background:rgba(61,31,10,.08);border-radius:9px;overflow:hidden;margin:10px 16px 0}
-.ks-btn{flex:1;padding:8px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;font-weight:500;color:var(--g);transition:all .2s}
-.ks-btn.on{background:var(--m);color:var(--c)}
-.kw{padding:8px 0;overflow-x:auto;scrollbar-width:thin}
-.kb{display:flex;gap:9px;padding:0 16px;min-width:max-content}
-.kc{width:240px;flex-shrink:0;background:rgba(61,31,10,.05);border-radius:10px;overflow:hidden}
-.kch{padding:9px 11px;display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.8px}
-.kcb{padding:5px;display:flex;flex-direction:column;gap:5px;min-height:80px;max-height:calc(100vh-260px);overflow-y:auto}
-.kcard{background:#fff;border-radius:8px;padding:9px;box-shadow:0 2px 7px rgba(61,31,10,.06);border:1px solid rgba(61,31,10,.07);animation:fi .25s ease;transition:all .2s}
-.kcard:hover{box-shadow:0 4px 12px rgba(61,31,10,.1);transform:translateY(-1px)}
-.kcard.urg{border-left:3px solid var(--o)}
-.kcard.agend{border-left:3px solid var(--b)}
-@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.kid{font-size:9px;color:var(--g);letter-spacing:.4px}
-.kcli{font-family:'Playfair Display',serif;font-size:13px;margin:2px 0}
-.kits{font-size:10px;color:var(--g);margin-bottom:4px;max-height:30px;overflow:hidden;line-height:1.4}
-.ktags{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:5px}
-.ktag{font-size:9px;padding:1px 5px;border-radius:100px;background:var(--cr);color:var(--g);font-weight:500}
-.kact{display:flex;gap:3px;flex-wrap:wrap}
-.kb2{padding:3px 7px;border-radius:5px;border:none;font-family:'DM Sans',sans-serif;font-size:10px;cursor:pointer;font-weight:500;transition:all .2s}
-.col-hor .kch{background:#fff3e0;color:#a04000}
-.col-pag .kch{background:#fef3cd;color:#856404}
-.col-con .kch{background:#d1e7dd;color:#0a3622}
-.col-pro .kch{background:#cfe2ff;color:#084298}
-.col-prt .kch{background:#d0f0c0;color:#1a5f1a}
-.col-ent .kch{background:#e2e3e5;color:#41464b}
-
-/* GESTÃO */
-.gc{padding:13px 16px}
-.gcard{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 10px rgba(61,31,10,.05);margin-bottom:12px}
-.gtt{font-family:'Playfair Display',serif;font-size:15px;color:var(--m);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
-.gdesc{font-size:11px;color:var(--g);margin-top:-6px;margin-bottom:10px;line-height:1.5}
-.fr{display:grid;gap:6px;margin-bottom:8px;align-items:end}
-.f2{grid-template-columns:1fr 1fr}.f3{grid-template-columns:1fr 1fr 1fr}.f2a{grid-template-columns:1fr 1fr auto}.f3a{grid-template-columns:1fr 1fr 1fr auto}
-.fg label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--g);margin-bottom:2px;font-weight:500}
-.fg input,.fg select,.fg textarea{width:100%;padding:7px 9px;border:1.5px solid rgba(61,31,10,.12);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--m);background:var(--cr);outline:none;transition:border-color .2s}
-.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--c);background:#fff}
-.fg textarea{resize:vertical;min-height:50px}
-.li{display:grid;gap:5px}
-.ir{display:flex;align-items:center;justify-content:space-between;background:var(--cr);border-radius:7px;padding:7px 10px}
-.in{flex:1}.inm{font-size:12px;font-weight:500;color:var(--m)}.ins{font-size:10px;color:var(--g);margin-top:1px}
-.ia{display:flex;gap:4px}
-.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
-.pc{background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(61,31,10,.06);border:1px solid rgba(61,31,10,.07);transition:all .2s}
-.pc:hover{box-shadow:0 4px 14px rgba(61,31,10,.1);transform:translateY(-1px)}
-.pc.off{opacity:.5}
-.pim{width:100%;height:100px;background:var(--cr);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden}
-.pim img{width:100%;height:100%;object-fit:cover}
-.pb{padding:8px 10px}
-.pcat{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--g);margin-bottom:2px;font-weight:500}
-.pnom{font-family:'Playfair Display',serif;font-size:13px;color:var(--m)}
-.pdsc{font-size:10px;color:var(--g);margin-bottom:4px;max-height:24px;overflow:hidden}
-.ppr{font-family:'Playfair Display',serif;font-size:14px;color:var(--v)}
-.pun{font-size:9px;color:var(--g)}
-.ptags{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
-.ptag{font-size:9px;padding:1px 5px;border-radius:100px;background:var(--cr);color:var(--g);font-weight:500}
-.ptag.on{background:#d1e7dd;color:#0a3622}
-.pft{padding:6px 10px;border-top:1px solid rgba(61,31,10,.06);display:flex;gap:4px;justify-content:space-between;align-items:center}
-.tmini{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;font-weight:500}
-.tm{width:28px;height:16px;background:#ddd;border-radius:100px;position:relative;transition:background .3s;flex-shrink:0}
-.tm.on{background:var(--v)}.tm::after{content:'';position:absolute;width:10px;height:10px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .3s}.tm.on::after{transform:translateX(12px)}
-.dias{display:flex;gap:4px;flex-wrap:wrap}
-.dia{width:30px;height:30px;border-radius:50%;border:2px solid rgba(61,31,10,.15);background:transparent;font-size:9px;font-weight:500;cursor:pointer;transition:all .2s;color:var(--g)}
-.dia.on{background:var(--c);border-color:var(--c);color:#fff}
-.canais{display:flex;gap:4px;flex-wrap:wrap}
-.canal{padding:4px 9px;border-radius:100px;border:1.5px solid rgba(61,31,10,.15);background:transparent;font-size:10px;cursor:pointer;font-weight:500;color:var(--g);transition:all .2s}
-.canal.on{border-color:var(--c);background:var(--c);color:#fff}
-#mapa-entrega{width:100%;height:350px;border-radius:9px;z-index:1}
-.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
-.mo.on{display:flex}
-.md{background:#fff;border-radius:12px;padding:19px;width:90%;max-width:500px;max-height:88vh;overflow-y:auto}
-.mtt{font-family:'Playfair Display',serif;font-size:16px;color:var(--m);margin-bottom:12px}
-.mft{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}
-.cs{background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 10px rgba(61,31,10,.05);margin-bottom:10px}
-.cst{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--g);font-weight:500;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(61,31,10,.07)}
-.cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:7px}
-.cf label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--g);margin-bottom:2px;font-weight:500}
-.cf input,.cf select{width:100%;padding:6px 8px;border:1.5px solid rgba(61,31,10,.12);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--m);background:var(--cr);outline:none}
-.cf input:focus{border-color:var(--c);background:#fff}
-.cff{grid-column:1/-1}
-.bsc{background:var(--c);color:#fff;border:none;padding:8px 17px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;font-weight:500;margin-top:5px}
-.fr-row{display:grid;grid-template-columns:80px 80px 90px 1fr auto;gap:6px;align-items:end;margin-bottom:5px}
-.trow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.tgl{position:relative;width:40px;height:22px;background:#ddd;border-radius:100px;cursor:pointer;transition:background .3s;flex-shrink:0}
-.tgl.on{background:var(--r)}.tgl::after{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .3s}.tgl.on::after{transform:translateX(18px)}
-.tla{font-size:12px;font-weight:500}.tls{font-size:10px;color:var(--g)}
-.notif{position:fixed;top:64px;right:14px;background:var(--v);color:#fff;padding:9px 14px;border-radius:9px;font-size:11px;font-weight:500;box-shadow:0 6px 20px rgba(0,0,0,.2);transform:translateX(120%);transition:transform .3s;z-index:999;max-width:230px}
-.notif.show{transform:translateX(0)}
-.es{text-align:center;padding:35px 16px;color:var(--g)}
-.es h2{font-family:'Playfair Display',serif;font-size:18px;color:var(--m);margin-bottom:4px}
-.ib{background:#fff8e1;border:1px solid #f9a825;border-radius:8px;padding:9px 12px;font-size:11px;color:#6d4c00;line-height:1.6;margin-bottom:10px}
-.popup-atend{display:none;position:fixed;bottom:18px;left:18px;background:#fff;border-radius:12px;padding:14px;box-shadow:0 8px 28px rgba(61,31,10,.2);z-index:300;max-width:280px;border:2px solid var(--o)}
-.popup-atend.show{display:block}
-.pa-tt{font-size:12px;font-weight:500;color:var(--o);margin-bottom:7px}
-.pa-item{background:var(--cr);border-radius:7px;padding:7px 9px;margin-bottom:5px;font-size:11px}
-.rel-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:13px}
-.rs{background:#fff;border-radius:9px;padding:11px 13px;border-left:4px solid var(--c);box-shadow:0 2px 7px rgba(61,31,10,.07)}
-.rs-n{font-family:'Playfair Display',serif;font-size:22px;color:var(--m)}
-.rs-l{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--g);margin-top:2px;font-weight:500}
-.cw{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(61,31,10,.05);margin-bottom:12px}
-.ct{font-size:11px;font-weight:500;color:var(--m);margin-bottom:9px;text-transform:uppercase;letter-spacing:1px}
-.nivel-badge{padding:2px 8px;border-radius:100px;font-size:9px;font-weight:600;text-transform:uppercase}
-.nivel-bronze{background:#f0e0c8;color:#8b4513}
-.nivel-prata{background:#e8e8e8;color:#555}
-.nivel-ouro{background:#fff3cd;color:#b8860b}
-.nivel-diamante{background:#e8f4f8;color:#1a5276}
-/* Logo upload */
-.logo-upload-area{border:2px dashed rgba(61,31,10,.2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px}
-.logo-upload-area:hover{border-color:var(--c);background:rgba(193,127,58,.05)}
-.logo-preview{width:100px;height:100px;border-radius:50%;object-fit:cover;margin:0 auto 10px;display:block;border:3px solid var(--c)}
-/* Senha */
-.senha-form{background:var(--cr);border-radius:9px;padding:14px;margin-top:12px}
-@media(max-width:768px){.kb{gap:7px}.kc{width:210px}.gc{padding:10px 12px}.f3,.f3a{grid-template-columns:1fr}.cg{grid-template-columns:1fr}.pg{grid-template-columns:1fr 1fr}.fr-row{grid-template-columns:1fr}.rel-stats{grid-template-columns:repeat(2,1fr)}}
-</style>
-</head>
-<body>
-
-<!-- LOGIN -->
-<div class="login-wrap" id="login-wrap">
-  <div class="login-box">
-    <div class="login-logo">Godoy</div>
-    <div class="login-sub">Painel de Gestão</div>
-    <input class="login-field" type="text" id="lg-user" placeholder="Usuário" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('lg-senha').focus()">
-    <input class="login-field" type="password" id="lg-senha" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
-    <button class="login-btn" onclick="fazerLogin()">Entrar</button>
-    <div class="login-err" id="lg-err"></div>
-    <div style="margin-top:14px;font-size:10px;color:var(--g)">Acesso ao portal do cliente: <a href="/portal" target="_blank" style="color:var(--c)">/portal</a></div>
-  </div>
-</div>
-
-<!-- PAINEL -->
-<div class="painel-wrap" id="painel-wrap">
-<header>
-  <div class="logo">
-    <img id="logo-img" class="logo-img" alt="Logo">
-    <div><div class="logo-txt" id="logo-nome">Godoy</div><span class="logo-sub">Painel de Gestão</span></div>
-  </div>
-  <div class="hr">
-    <div class="dh" id="relogio"></div>
-    <div class="usuario-info">👤 <span id="usuario-nome"></span></div>
-    <a href="/portal" target="_blank" class="btn bout" style="font-size:10px">🌐 Portal</a>
-    <button class="btn bout" style="font-size:10px" onclick="alterarSenha()">🔑</button>
-    <button class="btn br" style="font-size:10px" onclick="sair()">Sair</button>
-  </div>
-</header>
-
-<div class="tabs">
-  <button class="tb on" onclick="mudarTab('pedidos',this)">📋 Pedidos</button>
-  <button class="tb" onclick="mudarTab('cardapio',this)">🍞 Cardápio</button>
-  <button class="tb" onclick="mudarTab('combos',this)">🎁 Combos</button>
-  <button class="tb" onclick="mudarTab('categorias',this)">📂 Categorias</button>
-  <button class="tb" onclick="mudarTab('entregadores',this)">🛵 Entregadores</button>
-  <button class="tb" onclick="mudarTab('pontos',this)">⭐ Pontos</button>
-  <button class="tb" onclick="mudarTab('relatorios',this)">📊 Relatórios</button>
-  <button class="tb" onclick="mudarTab('clientes-especiais',this)">💎 Especiais</button>
-  <button class="tb" onclick="mudarTab('bloqueados',this)">🚫 Bloqueados</button>
-  <button class="tb" onclick="mudarTab('entrega',this)">📍 Entrega</button>
-  <button class="tb" onclick="mudarTab('configuracoes',this)">⚙️ Config</button>
-  <button class="tb" onclick="mudarTab('ausencia',this)">💤 Ausência</button>
-</div>
-
-<!-- PEDIDOS KANBAN -->
-<div id="tab-pedidos" class="tc on">
-  <div class="kanban-seg">
-    <button class="ks-btn on" id="ks-dia" onclick="setKanbanTipo('dia',this)">📦 Pedidos do Dia</button>
-    <button class="ks-btn" id="ks-agendados" onclick="setKanbanTipo('agendados',this)">📅 Encomendas Agendadas</button>
-  </div>
-  <div class="kanban-header">
-    <input type="date" id="f-data" style="padding:5px 8px;border:1.5px solid rgba(61,31,10,.15);border-radius:7px;font-size:11px;background:#fff;outline:none;color:var(--m)" onchange="carregarKanban()">
-    <input type="text" id="f-busca" placeholder="🔍 Buscar..." style="padding:5px 8px;border:1.5px solid rgba(61,31,10,.15);border-radius:7px;font-size:11px;background:#fff;outline:none;color:var(--m);width:140px" oninput="filtrarKanban()">
-  </div>
-  <div class="kw"><div class="kb" id="kb"></div></div>
-</div>
-
-<!-- CARDÁPIO -->
-<div id="tab-cardapio" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">🍞 Produtos <button class="btn bc" onclick="abrirProduto()">+ Novo</button></div>
-      <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap" id="filt-cat"></div>
-      <div class="pg" id="lista-prods"></div>
-    </div>
-  </div>
-</div>
-
-<!-- COMBOS -->
-<div id="tab-combos" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">🎁 Combos <button class="btn bc" onclick="abrirCombo()">+ Novo Combo</button></div>
-      <div class="gdesc">Monte combos com produtos do cardápio com preço especial.</div>
-      <div class="pg" id="lista-combos"></div>
-    </div>
-  </div>
-</div>
-
-<!-- CATEGORIAS -->
-<div id="tab-categorias" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">📂 Categorias <button class="btn bc" onclick="abrirCategoria()">+ Nova</button></div>
-      <div class="li" id="lista-cats"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ENTREGADORES -->
-<div id="tab-entregadores" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">🛵 Entregadores</div>
-      <div class="fr f2a">
-        <div class="fg"><label>Nome</label><input id="ent-n" placeholder="Nome"></div>
-        <div class="fg"><label>WhatsApp</label><input id="ent-t" placeholder="5543999999999"></div>
-        <button class="btn bc" onclick="addEnt()">+</button>
-      </div>
-      <div class="li" id="lista-ents"></div>
-    </div>
-  </div>
-</div>
-
-<!-- PONTOS -->
-<div id="tab-pontos" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">⭐ Programa de Pontos</div>
-      <div class="ib">Pontos são gerados automaticamente quando o pagamento é confirmado. Configure o programa em ⚙️ Config.</div>
-      <div class="li" id="lista-pontos"></div>
-    </div>
-  </div>
-</div>
-
-<!-- RELATÓRIOS -->
-<div id="tab-relatorios" class="tc">
-  <div class="gc">
-    <div style="display:flex;gap:6px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:11px;font-weight:500">Período:</span>
-      <button class="btn bc" onclick="carregarRel(7)" id="rel-7">7 dias</button>
-      <button class="btn bout" onclick="carregarRel(30)" id="rel-30">30 dias</button>
-      <button class="btn bout" onclick="carregarRel(90)" id="rel-90">90 dias</button>
-    </div>
-    <div class="rel-stats" id="rel-stats"></div>
-    <div class="cw"><div class="ct">Receita por dia</div><canvas id="ch-rec" height="80"></canvas></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="cw"><div class="ct">Status dos Pedidos</div><canvas id="ch-st" height="150"></canvas></div>
-      <div class="cw"><div class="ct">Formas de Pagamento</div><canvas id="ch-pg" height="150"></canvas></div>
-    </div>
-    <div class="gcard" id="rel-prods"></div>
-    <div class="gcard" id="rel-ents"></div>
-  </div>
-</div>
-
-<!-- CLIENTES ESPECIAIS -->
-<div id="tab-clientes-especiais" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">💎 Clientes Especiais</div>
-      <div class="gdesc">Clientes cadastrados aqui <strong>não precisam pagar entrada</strong> para confirmar o pedido — o pagamento é realizado na retirada ou entrega.</div>
-      <div class="fr f3a">
-        <div class="fg"><label>Telefone</label><input id="vip-t" placeholder="5543999999999"></div>
-        <div class="fg"><label>Nome</label><input id="vip-n"></div>
-        <div class="fg"><label>Observação</label><input id="vip-o" placeholder="Ex: cliente antigo, parceiro..."></div>
-        <button class="btn bc" onclick="addVip()">+</button>
-      </div>
-      <div class="li" id="lista-vip"></div>
-    </div>
-  </div>
-</div>
-
-<!-- BLOQUEADOS -->
-<div id="tab-bloqueados" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">🚫 Números Bloqueados</div>
-      <div class="gdesc">Números nesta lista <strong>não recebem resposta automática</strong> da Bella. Use para fornecedores, parceiros ou qualquer contato que prefira atender manualmente.</div>
-      <div class="fr f3a">
-        <div class="fg"><label>Telefone</label><input id="bl-t" placeholder="5543999999999"></div>
-        <div class="fg"><label>Nome / Empresa</label><input id="bl-n"></div>
-        <div class="fg"><label>Motivo</label><input id="bl-m" placeholder="Ex: Fornecedor, parceiro..."></div>
-        <button class="btn bc" onclick="addBloq()">+</button>
-      </div>
-      <div class="li" id="lista-bloq"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ENTREGA -->
-<div id="tab-entrega" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">📍 Mapa de Zonas <button class="btn bc" onclick="abrirZona()">+ Nova Zona</button></div>
-      <div class="ib">🟢 Verde = área de entrega | 🔴 Vermelho = sem entrega. Clique no mapa para definir coordenadas.</div>
-      <div id="mapa-entrega"></div>
-    </div>
-    <div class="gcard">
-      <div class="gtt">💰 Faixas de Preço por Raio</div>
-      <div class="ib">Cada faixa representa um raio a partir da padaria. Ex: Raio até 3km → R$ 5,00. Raio de 3 a 6km → R$ 8,00.</div>
-      <div id="lista-faixas"></div>
-      <div class="fr-row">
-        <div class="fg"><label>Raio de (km)</label><input type="number" id="f-min" placeholder="0"></div>
-        <div class="fg"><label>Raio até (km)</label><input type="number" id="f-max" placeholder="3"></div>
-        <div class="fg"><label>Taxa R$</label><input type="number" id="f-preco" placeholder="5.00"></div>
-        <div class="fg"><label>Descrição</label><input id="f-desc" placeholder="Ex: Até 3km"></div>
-        <button class="btn bc" onclick="addFaixa()" style="margin-top:16px">+</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- CONFIGURAÇÕES -->
-<div id="tab-configuracoes" class="tc">
-  <div class="gc">
-    <div class="cs">
-      <div class="cst">🖼️ Logo da Empresa</div>
-      <div class="logo-upload-area" id="logo-drop" onclick="document.getElementById('logo-file').click()">
-        <img id="logo-prev" class="logo-preview" style="display:none" alt="Logo">
-        <div id="logo-drop-txt">
-          <div style="font-size:24px;margin-bottom:6px">📷</div>
-          <div style="font-size:12px;color:var(--g)">Clique para fazer upload da logo</div>
-          <div style="font-size:10px;color:var(--g);margin-top:3px">PNG, JPG ou SVG</div>
-        </div>
-      </div>
-      <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="uploadLogo(this)">
-      <div class="cf" style="margin-top:6px"><label>Nome da Empresa</label><input id="cfg-logo_nome"></div>
-    </div>
-    <div class="cs">
-      <div class="cst">📱 WhatsApp do Negócio</div>
-      <div class="cg">
-        <div class="cf cff"><label>Número WhatsApp (5543XXXXXXXX) — usado para notificações e atendimento</label><input id="cfg-whatsapp_negocio" placeholder="5543999999999"></div>
-      </div>
-    </div>
-    <div class="cs">
-      <div class="cst">💰 Pagamento</div>
-      <div class="cg">
-        <div class="cf"><label>Chave Pix</label><input id="cfg-chave_pix"></div>
-        <div class="cf"><label>Exigir Entrada</label><select id="cfg-exigir_entrada"><option value="true">Sim</option><option value="false">Não</option></select></div>
-        <div class="cf"><label>% da Entrada</label><input type="number" id="cfg-percentual_entrada"></div>
-      </div>
-    </div>
-    <div class="cs">
-      <div class="cst">⭐ Programa de Pontos</div>
-      <div class="cg">
-        <div class="cf"><label>Cashback ativo</label><select id="cfg-cashback_ativo"><option value="true">Sim</option><option value="false">Não</option></select></div>
-        <div class="cf"><label>Pontos por R$ 1,00</label><input type="number" id="cfg-pontos_por_real"></div>
-        <div class="cf"><label>Mínimo para resgate (pontos)</label><input type="number" id="cfg-cashback_minimo_resgate"></div>
-        <div class="cf"><label>Pontos para Prata</label><input type="number" id="cfg-nivel_prata_pontos"></div>
-        <div class="cf"><label>Pontos para Ouro</label><input type="number" id="cfg-nivel_ouro_pontos"></div>
-        <div class="cf"><label>Pontos para Diamante</label><input type="number" id="cfg-nivel_diamante_pontos"></div>
-      </div>
-    </div>
-    <div class="cs">
-      <div class="cst">🕐 Horários de Atendimento</div>
-      <div class="cg">
-        <div class="cf"><label>Início WhatsApp</label><input type="time" id="cfg-horario_inicio_whatsapp"></div>
-        <div class="cf"><label>Fim WhatsApp</label><input type="time" id="cfg-horario_fim_whatsapp"></div>
-        <div class="cf"><label>Início Entrega</label><input type="time" id="cfg-horario_inicio_entrega"></div>
-        <div class="cf"><label>Fim Entrega</label><input type="time" id="cfg-horario_fim_entrega"></div>
-        <div class="cf cff"><label>Horário Loja (texto exibido para clientes)</label><input id="cfg-horario_loja"></div>
-      </div>
-    </div>
-    <div class="cs">
-      <div class="cst">🏪 Informações da Padaria</div>
-      <div class="cg">
-        <div class="cf"><label>Endereço</label><input id="cfg-endereco_padaria"></div>
-        <div class="cf"><label>Instagram</label><input id="cfg-instagram_padaria"></div>
-      </div>
-    </div>
-    <div class="cs">
-      <div class="cst">🖨️ Impressora Térmica</div>
-      <div class="cg">
-        <div class="cf"><label>IP da Impressora</label><input id="cfg-impressora_ip" placeholder="192.168.1.100"></div>
-        <div class="cf"><label>Porta</label><input id="cfg-impressora_porta" placeholder="9100"></div>
-      </div>
-    </div>
-    <button class="bsc" onclick="salvarCfg()">💾 Salvar Todas as Configurações</button>
-
-    <div class="senha-form">
-      <div style="font-size:11px;font-weight:500;color:var(--m);margin-bottom:8px">🔑 Alterar Senha</div>
-      <div class="fr f3">
-        <div class="fg"><label>Senha Atual</label><input type="password" id="ps-atual"></div>
-        <div class="fg"><label>Nova Senha</label><input type="password" id="ps-nova"></div>
-        <div class="fg"><label>Confirmar</label><input type="password" id="ps-conf"></div>
-      </div>
-      <button class="btn bc" onclick="salvarSenha()">Alterar Senha</button>
-    </div>
-  </div>
-</div>
-
-<!-- AUSÊNCIA -->
-<div id="tab-ausencia" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">💤 Modo Ausência</div>
-      <div class="trow">
-        <div class="tgl" id="aus-tgl" onclick="toggleAus()"></div>
-        <div><div class="tla" id="aus-lbl">Desativado</div><div class="tls" id="aus-st">Atendimento automático ativo</div></div>
-      </div>
-      <div class="fg" style="margin-bottom:10px"><label>Mensagem personalizada</label><textarea id="aus-msg" rows="4"></textarea></div>
-      <button class="btn bc" onclick="salvarAus()">💾 Salvar</button>
-    </div>
-  </div>
-</div>
-</div><!-- /painel-wrap -->
-
-<!-- MODAIS -->
-<div class="mo" id="mo-ped">
-  <div class="md">
-    <div class="mtt">✏️ Pedido <span id="mp-id"></span></div>
-    <input type="hidden" id="mp-hid">
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Cliente</label><input id="mp-nom"></div><div class="fg"><label>Tipo</label><select id="mp-tipo" onchange="toggleMpEnd()"><option value="retirada">🏪 Retirada</option><option value="entrega">🛵 Entrega</option></select></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Itens</label><textarea id="mp-its" rows="2"></textarea></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Agendamento (texto)</label><input id="mp-age"></div><div class="fg"><label>Data/Hora Agend.</label><input type="datetime-local" id="mp-dagend"></div></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Pagamento</label><select id="mp-pag"><option>Pix</option><option>Cartão de crédito</option><option>Cartão de débito</option><option>Dinheiro</option></select></div><div class="fg"><label>Valor R$</label><input type="number" id="mp-val" step="0.01"></div></div>
-    <div class="fg" style="margin-bottom:6px;display:none" id="mp-endg"><label>Endereço</label><input id="mp-end"></div>
-    <div class="fg" style="margin-bottom:6px"><label>Chamar Entregador</label><select id="mp-ent"><option value="">— Nenhum —</option></select></div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="salvarPedido()">💾 Salvar</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-excluir">
-  <div class="md" style="max-width:400px">
-    <div class="mtt">🗑️ Excluir Pedido <span id="mex-id"></span></div>
-    <input type="hidden" id="mex-hid">
-    <div class="fg" style="margin-bottom:10px"><label>Motivo da exclusão (obrigatório)</label><textarea id="mex-motivo" rows="3" placeholder="Informe o motivo para registrar no histórico..."></textarea></div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn br" onclick="confirmarExclusao()">🗑️ Excluir</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-hist">
-  <div class="md">
-    <div class="mtt">📋 Histórico <span id="mh-id"></span></div>
-    <div id="mh-lst" style="display:grid;gap:5px"></div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Fechar</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-prod">
-  <div class="md">
-    <div class="mtt" id="mpr-tt">➕ Novo Produto</div>
-    <input type="hidden" id="pp-id">
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Nome</label><input id="pp-nom"></div><div class="fg"><label>Categoria</label><select id="pp-cat"><option value="">Selecione...</option></select></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Descrição</label><input id="pp-dsc"></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Preço R$</label><input type="number" id="pp-pre" step="0.10"></div><div class="fg"><label>Unidade</label><select id="pp-uni"><option>unidade</option><option>kg</option><option>cento</option><option>dúzia</option><option>bandeja</option></select></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Tipo de Pedido</label><select id="pp-tip"><option value="ambos">📅⚡ Agendamento e na hora</option><option value="agendamento">📅 Somente agendamento</option><option value="hora">⚡ Somente na hora</option></select></div>
-    <div class="fg" style="margin-bottom:6px"><label>Disponível para</label><div class="canais" id="pp-canais"><div class="canal on" data-c="delivery" onclick="tCanal(this)">🛵 Delivery</div><div class="canal on" data-c="retirada" onclick="tCanal(this)">🏪 Retirada</div><div class="canal" data-c="salao" onclick="tCanal(this)">🍽️ Salão</div></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Imagem</label><input type="file" id="pp-img" accept="image/*" onchange="prevImg(this,'pp-prv')" style="font-size:10px;padding:3px"><img id="pp-prv" style="width:100%;height:75px;object-fit:cover;border-radius:7px;margin-top:4px;display:none"></div>
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><input type="checkbox" id="pp-dest" style="width:auto"><label for="pp-dest" style="font-size:11px;cursor:pointer">⭐ Produto em destaque</label></div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="saveProd()">💾 Salvar</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-comp">
-  <div class="md" style="max-width:560px">
-    <div class="mtt">🧩 Complementos — <span id="mc-pnom"></span></div>
-    <input type="hidden" id="mc-pid">
-    <div id="mc-grupos"></div>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(61,31,10,.07)">
-      <div style="font-size:10px;text-transform:uppercase;color:var(--g);font-weight:500;margin-bottom:6px">+ Novo Grupo</div>
-      <div class="fr f2" style="margin-bottom:5px"><div class="fg"><label>Nome do Grupo</label><input id="ng-nom" placeholder="Ex: Recheio, Tamanho..."></div><div class="fg"><label>Tipo</label><select id="ng-obr"><option value="false">Opcional</option><option value="true">Obrigatório</option></select></div></div>
-      <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Mín.</label><input type="number" id="ng-min" value="0"></div><div class="fg"><label>Máx.</label><input type="number" id="ng-max" value="1"></div></div>
-      <button class="btn bc" onclick="addGrupo()">+ Adicionar Grupo</button>
-    </div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Fechar</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-combo">
-  <div class="md" style="max-width:560px">
-    <div class="mtt" id="mcb-tt">🎁 Novo Combo</div>
-    <input type="hidden" id="cb-id">
-    <div class="fg" style="margin-bottom:6px"><label>Nome do Combo</label><input id="cb-nom" placeholder="Ex: Combo Festa, Kit Café da Manhã..."></div>
-    <div class="fg" style="margin-bottom:6px"><label>Descrição</label><input id="cb-dsc"></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Preço do Combo R$</label><input type="number" id="cb-pre" step="0.10"></div><div class="fg"><label>Preço Original R$ (riscado)</label><input type="number" id="cb-preo" step="0.10"></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Disponível para</label><div class="canais" id="cb-canais"><div class="canal on" data-c="delivery" onclick="tCanal(this)">🛵 Delivery</div><div class="canal on" data-c="retirada" onclick="tCanal(this)">🏪 Retirada</div><div class="canal" data-c="salao" onclick="tCanal(this)">🍽️ Salão</div></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Imagem</label><input type="file" id="cb-img" accept="image/*" onchange="prevImg(this,'cb-prv')" style="font-size:10px;padding:3px"><img id="cb-prv" style="width:100%;height:75px;object-fit:cover;border-radius:7px;margin-top:4px;display:none"></div>
-    <div style="margin-bottom:6px">
-      <div style="font-size:10px;text-transform:uppercase;color:var(--g);font-weight:500;margin-bottom:6px">Produtos do Combo</div>
-      <div id="cb-itens-lista" style="display:grid;gap:4px;margin-bottom:8px"></div>
-      <div class="fr f3" style="margin-bottom:4px">
-        <div class="fg"><label>Produto</label><select id="cb-prod-sel"><option value="">Selecione...</option></select></div>
-        <div class="fg"><label>Quantidade</label><input type="number" id="cb-prod-qtd" value="1" step="0.5"></div>
-        <div class="fg"><label>Obs (opcional)</label><input id="cb-prod-obs" placeholder="Ex: à escolha"></div>
-      </div>
-      <button class="btn bout" style="font-size:11px" onclick="addItemCombo()">+ Adicionar Produto</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><input type="checkbox" id="cb-dest" style="width:auto"><label for="cb-dest" style="font-size:11px;cursor:pointer">⭐ Combo em destaque</label></div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="saveCombo()">💾 Salvar</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-cat">
-  <div class="md">
-    <div class="mtt" id="mct-tt">📂 Nova Categoria</div>
-    <input type="hidden" id="mct-id">
-    <div class="fg" style="margin-bottom:6px"><label>Nome</label><input id="mct-nom"></div>
-    <div class="fg" style="margin-bottom:6px"><label>Descrição</label><textarea id="mct-dsc" rows="2"></textarea></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Horário início</label><input type="time" id="mct-hi" value="06:00"></div><div class="fg"><label>Horário fim</label><input type="time" id="mct-hf" value="20:00"></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Dias disponíveis</label><div class="dias" id="mct-dias"><button class="dia on" data-d="0" onclick="tDia(this)">D</button><button class="dia on" data-d="1" onclick="tDia(this)">S</button><button class="dia on" data-d="2" onclick="tDia(this)">T</button><button class="dia on" data-d="3" onclick="tDia(this)">Q</button><button class="dia on" data-d="4" onclick="tDia(this)">Q</button><button class="dia on" data-d="5" onclick="tDia(this)">S</button><button class="dia on" data-d="6" onclick="tDia(this)">S</button></div></div>
-    <div class="fg" style="margin-bottom:6px"><label>Canais</label><div class="canais" id="mct-canais"><div class="canal on" data-c="delivery" onclick="tCanal(this)">🛵 Delivery</div><div class="canal on" data-c="retirada" onclick="tCanal(this)">🏪 Retirada</div><div class="canal" data-c="salao" onclick="tCanal(this)">🍽️ Salão</div></div></div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="saveCat()">💾 Salvar</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-zona">
-  <div class="md" style="max-width:420px">
-    <div class="mtt">📍 Nova Zona</div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Nome</label><input id="zo-nom"></div><div class="fg"><label>Tipo</label><select id="zo-tipo"><option value="entrega">🟢 Área de entrega</option><option value="nao_entrega">🔴 Sem entrega</option></select></div></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Latitude</label><input type="number" id="zo-lat" step="0.000001"></div><div class="fg"><label>Longitude</label><input type="number" id="zo-lng" step="0.000001"></div></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Raio (km)</label><input type="number" id="zo-raio" step="0.5"></div><div class="fg"><label>Cor</label><input type="color" id="zo-cor" value="#2d6a4f" style="height:34px;cursor:pointer;border-radius:7px;border:1.5px solid rgba(61,31,10,.12);padding:2px;width:100%"></div></div>
-    <div style="font-size:10px;color:var(--g);margin-bottom:6px">💡 Clique no mapa para definir coordenadas automaticamente</div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="saveZona()">💾 Salvar</button></div>
-  </div>
-</div>
-
-<!-- POP-UP ATENDIMENTO -->
-<div class="popup-atend" id="popup-atend">
-  <div class="pa-tt">👋 Atendimento humano pendente</div>
-  <div id="pa-lista"></div>
-  <button class="btn bc" style="width:100%;margin-top:4px" onclick="document.getElementById('popup-atend').classList.remove('show')">Fechar</button>
-</div>
-
-<div class="notif" id="notif"></div>
-
-<script>
-let TOKEN=localStorage.getItem('godoy_token')||'';
-let USER_NOME=localStorage.getItem('godoy_nome')||'';
-let todos=[], ulTotal=0, ausAtivo=false, mapaInst=null, filtroCatProd='todas', kanbanTipo='dia';
-let prodImgB64=null, prodImgTp=null, cbImgB64=null, cbImgTp=null;
-let cbItens=[], relC1=null, relC2=null, relC3=null;
-const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-
-// API helper
-async function api(url, opts={}) {
-  const h = { 'Content-Type': 'application/json', 'x-token': TOKEN };
-  const r = await fetch(url, { ...opts, headers: { ...h, ...(opts.headers||{}) } });
-  if (r.status === 401) { sair(); return null; }
-  return r.json();
+async function getConfig(k) {
+  try { const r = await pool.query('SELECT valor FROM configuracoes WHERE chave=$1',[k]); return r.rows[0]?.valor||null; } catch(e) { return null; }
+}
+async function enviarWA(tel, msg) {
+  try { await fetch(ZAPI_URL,{method:'POST',headers:{'Content-Type':'application/json','Client-Token':ZAPI_TOKEN},body:JSON.stringify({phone:tel,message:msg})}); } catch(e) {}
+}
+async function regHist(pid,acao,desc,ant,nov) {
+  try { await pool.query('INSERT INTO historico_pedidos(pedido_id,acao,descricao,dados_anteriores,dados_novos)VALUES($1,$2,$3,$4,$5)',[pid,acao,desc,JSON.stringify(ant||{}),JSON.stringify(nov||{})]); } catch(e) {}
 }
 
-// LOGIN
-async function fazerLogin() {
-  const u = document.getElementById('lg-user').value.trim();
-  const s = document.getElementById('lg-senha').value;
-  if (!u || !s) return;
+// ===== AUTENTICAÇÃO =====
+// Middleware de autenticação — só protege /api/ (exceto rotas públicas)
+async function auth(req, res, next) {
+  // Só aplica em rotas de API
+  if (!req.path.startsWith('/api/')) return next();
+
+  // Rotas de API públicas (sem token)
+  const pub = ['/api/login', '/api/portal/', '/api/cardapio'];
+  if (pub.some(p => req.path.startsWith(p))) return next();
+
+  const token = req.headers['x-token'] || req.query.token;
+  if (!token) return res.status(401).json({ error: 'Não autorizado' });
+
   try {
-    const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({usuario:u,senha:s}) });
-    const d = await r.json();
-    if (d.success) {
-      TOKEN = d.token; USER_NOME = d.nome;
-      localStorage.setItem('godoy_token', TOKEN);
-      localStorage.setItem('godoy_nome', USER_NOME);
-      mostrarPainel();
-    } else { document.getElementById('lg-err').textContent = d.error || 'Erro ao entrar'; }
-  } catch(e) { document.getElementById('lg-err').textContent = 'Erro de conexão'; }
+    const r = await pool.query("SELECT s.*,u.nome,u.nivel FROM sessoes_painel s JOIN usuarios_painel u ON s.usuario_id=u.id WHERE s.token=$1 AND s.expira_em>NOW()",[token]);
+    if (!r.rows[0]) return res.status(401).json({ error: 'Sessão expirada' });
+    req.usuario = r.rows[0];
+    await pool.query("UPDATE sessoes_painel SET expira_em=NOW()+INTERVAL '8 hours' WHERE token=$1",[token]);
+    next();
+  } catch(e) { res.status(500).json({ error: e.message }); }
 }
 
-function mostrarPainel() {
-  document.getElementById('login-wrap').style.display = 'none';
-  document.getElementById('painel-wrap').style.display = 'block';
-  document.getElementById('usuario-nome').textContent = USER_NOME;
-  carregarLogo();
-  carregarKanban();
-  setInterval(carregarKanban, 15000);
-  setInterval(checarAtendimento, 30000);
+app.use(auth);
+
+// Hash simples SHA256 (sem bcrypt para não precisar de dependência)
+function hashSenha(senha) {
+  return crypto.createHash('sha256').update(senha + 'godoy_salt_2024').digest('hex');
 }
 
-function sair() {
-  api('/api/logout', {method:'POST'});
-  localStorage.removeItem('godoy_token');
-  localStorage.removeItem('godoy_nome');
-  TOKEN = ''; USER_NOME = '';
-  document.getElementById('login-wrap').style.display = 'flex';
-  document.getElementById('painel-wrap').style.display = 'none';
-}
+app.post('/api/login', async (req, res) => {
+  const { usuario, senha } = req.body;
+  try {
+    const hash = hashSenha(senha);
+    const r = await pool.query("SELECT * FROM usuarios_painel WHERE usuario=$1 AND ativo=TRUE",[usuario]);
+    if (!r.rows[0]) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+    const u = r.rows[0];
+    // Aceita hash SHA256 ou a senha padrão 'godoy2024' para o admin
+    const senhaOk = u.senha_hash === hash || (usuario === 'admin' && senha === 'godoy2024');
+    if (!senhaOk) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query("INSERT INTO sessoes_painel(token,usuario_id) VALUES($1,$2)",[token,u.id]);
+    await pool.query("UPDATE usuarios_painel SET ultimo_acesso=NOW() WHERE id=$1",[u.id]);
+    res.json({ success: true, token, nome: u.nome, nivel: u.nivel });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
-function alterarSenha() { mudarTab('configuracoes', document.querySelector('.tb:last-of-type')); setTimeout(()=>document.getElementById('ps-atual')?.focus(),300); }
+app.post('/api/logout', async (req, res) => {
+  const token = req.headers['x-token'];
+  try { await pool.query("DELETE FROM sessoes_painel WHERE token=$1",[token]); res.json({ success: true }); } catch(e) { res.json({ success: true }); }
+});
 
-async function salvarSenha() {
-  const a=document.getElementById('ps-atual').value, n=document.getElementById('ps-nova').value, c=document.getElementById('ps-conf').value;
-  if (!a||!n||!c) return nt('Preencha todos os campos',true);
-  if (n !== c) return nt('Senhas não conferem',true);
-  try { const r=await api('/api/alterar-senha',{method:'POST',body:JSON.stringify({senha_atual:a,senha_nova:n})}); if(r?.success){nt('✅ Senha alterada!');document.getElementById('ps-atual').value='';document.getElementById('ps-nova').value='';document.getElementById('ps-conf').value=''}else{nt(r?.error||'Erro',true)} } catch(e){nt('Erro',true)}
-}
+app.post('/api/alterar-senha', async (req, res) => {
+  const { senha_atual, senha_nova } = req.body;
+  try {
+    const hashAtual = hashSenha(senha_atual);
+    const u = await pool.query("SELECT * FROM usuarios_painel WHERE id=$1",[req.usuario.usuario_id]);
+    const senhaOk = u.rows[0]?.senha_hash === hashAtual || senha_atual === 'godoy2024';
+    if (!senhaOk) return res.status(400).json({ error: 'Senha atual incorreta' });
+    await pool.query("UPDATE usuarios_painel SET senha_hash=$1 WHERE id=$2",[hashSenha(senha_nova),req.usuario.usuario_id]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
-// Init
-if (TOKEN) {
-  document.getElementById('login-wrap').style.display = 'none';
-  document.getElementById('painel-wrap').style.display = 'block';
-  document.getElementById('usuario-nome').textContent = USER_NOME;
-  setTimeout(()=>{carregarLogo();carregarKanban();setInterval(carregarKanban,15000);setInterval(checarAtendimento,30000)},100);
-}
+// Serve painel (com login)
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/portal', (req, res) => res.sendFile(path.join(__dirname, 'public', 'portal.html')));
+app.use(express.static(path.join(__dirname, 'public')));
 
-document.getElementById('lg-senha').addEventListener('keydown', e => { if(e.key==='Enter') fazerLogin(); });
+// ===== PEDIDOS =====
+app.get('/api/pedidos', async (req, res) => {
+  try {
+    const { data, busca, ordenar, tipo_kanban } = req.query;
+    let q = "SELECT * FROM pedidos WHERE arquivado=FALSE";
+    let p = []; let i = 1;
+    if (data) { q+=` AND DATE(criado_em AT TIME ZONE 'America/Sao_Paulo')=$${i++}`; p.push(data); }
+    if (busca) { q+=` AND (nome_cliente ILIKE $${i} OR telefone ILIKE $${i} OR itens ILIKE $${i})`; p.push(`%${busca}%`); i++; }
+    // Separação: 'dia' = sem agendamento ou agendamento hoje, 'agendados' = agendamento futuro
+    if (tipo_kanban === 'dia') {
+      q += ` AND (data_agendamento IS NULL OR DATE(data_agendamento AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE)`;
+    } else if (tipo_kanban === 'agendados') {
+      q += ` AND data_agendamento IS NOT NULL AND DATE(data_agendamento AT TIME ZONE 'America/Sao_Paulo') > CURRENT_DATE`;
+    }
+    q += ordenar==='agendamento' ? ' ORDER BY data_agendamento ASC NULLS LAST, criado_em DESC' : ' ORDER BY criado_em DESC';
+    q += ' LIMIT 300';
+    res.json((await pool.query(q,p)).rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
-function tocarSom(f=[880,660,880]){try{const c=new(window.AudioContext||window.webkitAudioContext)();f.forEach((fr,i)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=fr;g.gain.setValueAtTime(.22,c.currentTime+i*.15);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+i*.15+.4);o.start(c.currentTime+i*.15);o.stop(c.currentTime+i*.15+.4)})}catch(e){}}
-function relogio(){const a=new Date();document.getElementById('relogio').textContent=a.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})+' '+a.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
-setInterval(relogio,1000);relogio();
-function mudarTab(n,b){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.tc').forEach(x=>x.classList.remove('on'));if(b)b.classList.add('on');document.getElementById('tab-'+n).classList.add('on');if(n==='cardapio')carregarProds();if(n==='combos')carregarCombos();if(n==='categorias')carregarCats();if(n==='entregadores')carregarEnts();if(n==='pontos')carregarPontos();if(n==='relatorios')carregarRel(30);if(n==='clientes-especiais')carregarVip();if(n==='bloqueados')carregarBloq();if(n==='entrega'){carregarFaixas();initMapa();}if(n==='configuracoes')carregarCfg();if(n==='ausencia')carregarAus()}
-function nt(m,e=false){const el=document.getElementById('notif');el.textContent=m;el.style.background=e?'#c1392b':'#2d6a4f';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3500)}
-function fMo(){document.querySelectorAll('.mo').forEach(m=>m.classList.remove('on'))}
-document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)fMo()}));
-function tDia(b){b.classList.toggle('on')}
-function tCanal(b){b.classList.toggle('on')}
+app.patch('/api/pedidos/:id/status', async (req, res) => {
+  const {id}=req.params; const {status}=req.body;
+  try {
+    const ant=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
+    if(!ant) return res.status(404).json({error:'Não encontrado'});
+    await pool.query('UPDATE pedidos SET status=$1 WHERE id=$2',[status,id]);
+    await regHist(id,'status',`${ant.status} → ${status}`,{status:ant.status},{status});
+    if(status==='confirmado') {
+      await enviarWA(ant.telefone,`✅ *Pagamento confirmado!*\n\nSeu pedido #${ant.id} entrou em produção! Avisaremos quando estiver pronto. 😊`);
+      if(ant.valor_total) await gerarPontos(ant.telefone,ant.nome_cliente,parseFloat(ant.valor_total),ant.id);
+    }
+    if(status==='pronto') {
+      const end=await getConfig('endereco_padaria')||'R. Aquiles, 231';
+      const msg=ant.tipo==='entrega'?`🎉 *Pedido #${ant.id} pronto!*\nEstamos preparando para entrega! 🛵`:`🎉 *Pedido #${ant.id} pronto para retirada!*\n📍 ${end}`;
+      await enviarWA(ant.telefone,msg);
+    }
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function carregarLogo(){try{const c=await api('/api/configuracoes');if(!c)return;const url=c.logo_base64||c.logo_url;const nome=c.logo_nome||'Godoy';document.getElementById('logo-nome').textContent=nome;if(url){const img=document.getElementById('logo-img');img.src=url;img.style.display='block';img.onerror=()=>img.style.display='none';const prev=document.getElementById('logo-prev');prev.src=url;prev.style.display='block';document.getElementById('logo-drop-txt').style.display='none'}}catch(e){}}
+app.patch('/api/pedidos/:id/editar', async (req, res) => {
+  const {id}=req.params; const body=req.body;
+  try {
+    const ant=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
+    if(!ant) return res.status(404).json({error:'Não encontrado'});
+    const f=[]; const v=[]; let i=1;
+    ['nome_cliente','itens','forma_pagamento','valor_total','observacoes','endereco','tipo','status','data_agendamento'].forEach(c=>{if(body[c]!==undefined){f.push(`${c}=$${i++}`);v.push(body[c])}});
+    if(!f.length) return res.json({success:true});
+    v.push(id); await pool.query(`UPDATE pedidos SET ${f.join(',')} WHERE id=$${i}`,v);
+    await regHist(id,'edicao','Editado manualmente',ant,body);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-// ===== ATENDIMENTO =====
-async function checarAtendimento(){try{const r=await api('/api/atendimento-pendente');if(!r)return;if(r.length>0){document.getElementById('pa-lista').innerHTML=r.map(x=>`<div class="pa-item"><div style="font-weight:500;font-size:11px">📱 ${x.telefone}</div><div style="font-size:10px;color:var(--g)">${x.ultima_mensagem||x.itens||'Aguardando'}</div><button class="btn bv" style="margin-top:4px;width:100%;font-size:10px" onclick="liberarAtend('${x.telefone}')">✓ Liberar</button></div>`).join('');document.getElementById('popup-atend').classList.add('show')}else{document.getElementById('popup-atend').classList.remove('show')}}catch(e){}}
-async function liberarAtend(t){try{await api(`/api/atendimento-pendente/${t}/liberar`,{method:'POST'});nt('✅ Liberado!');checarAtendimento()}catch(e){nt('Erro',true)}}
+app.delete('/api/pedidos/:id', async (req, res) => {
+  const {id}=req.params; const {motivo}=req.body;
+  if(!motivo) return res.status(400).json({error:'Motivo obrigatório para excluir'});
+  try {
+    await pool.query('UPDATE pedidos SET arquivado=TRUE,arquivado_em=NOW() WHERE id=$1',[id]);
+    await regHist(id,'excluido',motivo,null,null);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-// ===== KANBAN =====
-function setKanbanTipo(tipo, btn) {
-  kanbanTipo = tipo;
-  document.querySelectorAll('.ks-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  carregarKanban();
-}
+app.get('/api/pedidos/:id/historico', async (req, res) => {
+  try { res.json((await pool.query('SELECT * FROM historico_pedidos WHERE pedido_id=$1 ORDER BY criado_em DESC',[req.params.id])).rows); }
+  catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function carregarKanban(){
-  try{
-    const data=document.getElementById('f-data').value;
-    const busca=document.getElementById('f-busca').value;
-    let url=`/api/pedidos?tipo_kanban=${kanbanTipo}`;
-    if(kanbanTipo==='agendados') url+='&ordenar=agendamento';
-    if(data)url+=`&data=${data}`;
-    if(busca)url+=`&busca=${encodeURIComponent(busca)}`;
-    const n=await api(url);if(!n)return;
-    if(ulTotal>0&&n.length>ulTotal){tocarSom([660,880,1100]);nt('🔔 Novo pedido!')}
-    const ah=n.filter(p=>p.status==='aguardando_horario').length;
-    if(ah>todos.filter(p=>p.status==='aguardando_horario').length){tocarSom([880,660,880,660]);nt('⏰ Pedido aguardando confirmação!')}
-    ulTotal=n.length;todos=n;renderKanban(n);checarAtendimento();
-  }catch(e){console.error(e)}
-}
-function filtrarKanban(){const b=document.getElementById('f-busca').value.toLowerCase();renderKanban(b?todos.filter(p=>(p.nome_cliente||'').toLowerCase().includes(b)||(p.telefone||'').includes(b)||(p.itens||'').toLowerCase().includes(b)):todos)}
+app.post('/api/pedidos/parcial', async (req, res) => {
+  const {telefone,nome_cliente,itens,observacoes,status}=req.body;
+  try {
+    const ex=await pool.query("SELECT id FROM pedidos WHERE telefone=$1 AND status='aguardando_horario'",[telefone]);
+    if(ex.rows.length) return res.json({success:true,id:ex.rows[0].id});
+    const r=await pool.query('INSERT INTO pedidos(telefone,nome_cliente,itens,observacoes,status,criado_em)VALUES($1,$2,$3,$4,$5,NOW())RETURNING id',[telefone,nome_cliente,itens,observacoes,status||'aguardando_horario']);
+    res.json({success:true,id:r.rows[0].id});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-function renderKanban(p){
-  const cols=[['aguardando_horario','col-hor'],['aguardando_pagamento','col-pag'],['confirmado','col-con'],['em_producao','col-pro'],['pronto','col-prt'],['entregue','col-ent']];
-  const lbs={'aguardando_horario':'⏰ Horário','aguardando_pagamento':'💰 Pgto','confirmado':'✅ Confirmados','em_producao':'🔥 Produção','pronto':'🎉 Prontos','entregue':'📦 Entregues'};
-  document.getElementById('kb').innerHTML=cols.map(([s,cls])=>{
-    const items=p.filter(x=>x.status===s);
-    return`<div class="kc ${cls}">
-      <div class="kch">${lbs[s]}<span style="font-size:15px;font-family:'Playfair Display',serif">${items.length}</span></div>
-      <div class="kcb">${items.length?items.map(x=>{
-        const cr=new Date(x.criado_em);
-        const urg=s==='aguardando_horario';
-        const isAgend=!!x.data_agendamento;
-        const agendStr=x.data_agendamento?`📅${new Date(x.data_agendamento).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`:x.observacoes?x.observacoes.slice(0,12):'';
-        return`<div class="kcard ${urg?'urg':isAgend?'agend':''}">
-          <div class="kid">#${x.id} · ${cr.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}${agendStr?' · '+agendStr:''}</div>
-          <div class="kcli">${x.nome_cliente||'Cliente'}</div>
-          <div class="kits">${x.itens||'—'}</div>
-          <div class="ktags">
-            <span class="ktag">${x.tipo==='entrega'?'🛵':'🏪'}</span>
-            ${x.valor_total?`<span class="ktag" style="color:var(--v);background:#d1e7dd">R$ ${Number(x.valor_total).toFixed(2)}</span>`:''}
-            ${x.forma_pagamento?`<span class="ktag">${x.forma_pagamento.slice(0,3)}</span>`:''}
-          </div>
-          <div class="kact">
-            ${urg?`<button class="kb2" style="background:var(--o);color:#fff" onclick="updSt(${x.id},'aguardando_pagamento')">✓</button><button class="kb2" style="border:1px solid var(--r);color:var(--r)" onclick="cancHor(${x.id})">✕</button>`:''}
-            ${s==='aguardando_pagamento'?`<button class="kb2" style="background:var(--v);color:#fff" onclick="updSt(${x.id},'confirmado')">✓ Pgto</button><button class="kb2" style="border:1px solid var(--r);color:var(--r)" onclick="cancPed(${x.id})">✕</button>`:''}
-            ${s==='confirmado'?`<button class="kb2" style="background:var(--b);color:#fff" onclick="updSt(${x.id},'em_producao')">🔥</button>`:''}
-            ${s==='em_producao'?`<button class="kb2" style="background:var(--c);color:#fff" onclick="updSt(${x.id},'pronto')">✓</button>`:''}
-            ${s==='pronto'?`<button class="kb2" style="background:var(--g);color:#fff" onclick="updSt(${x.id},'entregue')">📦 Entregue</button>${x.tipo==='entrega'?`<button class="kb2" style="background:var(--o);color:#fff" title="Chamar entregador" onclick="chamarEntRap(${x.id})">🛵</button>`:''}`:''}
-            ${s==='em_producao'&&x.tipo==='entrega'?`<button class="kb2" style="background:var(--o);color:#fff;opacity:.7" title="Chamar entregador" onclick="chamarEntRap(${x.id})">🛵</button>`:''}
-            <button class="kb2 bout" onclick="abrirEditPed(${x.id})" style="margin-left:auto">✏️</button>
-            <button class="kb2 bout" onclick="verHist(${x.id})">📋</button>
-            <button class="kb2" style="border:1px solid var(--r);color:var(--r)" onclick="abrirExcluir(${x.id})">🗑️</button>
-          </div>
-        </div>`}).join(''):`<div style="text-align:center;padding:14px;font-size:10px;color:var(--g)">Vazio</div>`}
-      </div>
-    </div>`}).join('');
-}
+app.post('/api/pedidos/:id/confirmar-horario', async (req, res) => {
+  const {id}=req.params;
+  try {
+    const p=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
+    if(!p) return res.status(404).json({error:'Não encontrado'});
+    await pool.query("UPDATE pedidos SET status='aguardando_pagamento' WHERE id=$1",[id]);
+    await pool.query("UPDATE estado_pedido SET etapa='aguardando_tipo',atualizado_em=NOW() WHERE telefone=$1",[p.telefone]);
+    await enviarWA(p.telefone,`✅ Ótimas notícias! Conseguimos atender! 😊\n\n📍 Retirada na loja ou entrega?\n\n🏪 *1* — Retirada\n🛵 *2* — Entrega`);
+    const pedAtual=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
+    if(pedAtual) await enviarResumodoPedido(pedAtual);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function updSt(id,s){try{await api(`/api/pedidos/${id}/status`,{method:'PATCH',body:JSON.stringify({status:s})});nt('✓');await carregarKanban()}catch(e){nt('Erro',true)}}
-async function cancHor(id){try{await api(`/api/pedidos/${id}/cancelar-horario`,{method:'POST'});nt('Cancelado.');await carregarKanban()}catch(e){nt('Erro',true)}}
-async function cancPed(id){const m=prompt('Motivo (opcional):');try{await api(`/api/pedidos/${id}/cancelar`,{method:'POST',body:JSON.stringify({motivo:m})});nt('Cancelado.');await carregarKanban()}catch(e){nt('Erro',true)}}
+app.post('/api/pedidos/:id/cancelar-horario', async (req, res) => {
+  const {id}=req.params;
+  try {
+    const p=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
+    if(!p) return res.status(404).json({error:'Não encontrado'});
+    await pool.query("UPDATE pedidos SET status='cancelado' WHERE id=$1",[id]);
+    await pool.query('DELETE FROM estado_pedido WHERE telefone=$1',[p.telefone]);
+    await enviarWA(p.telefone,`😔 Não conseguimos atender no horário solicitado.\n\nNosso prazo mínimo é 4 horas. Posso remarcar? 😊`);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-function abrirExcluir(id){
-  document.getElementById('mex-hid').value=id;
-  document.getElementById('mex-id').textContent=`#${id}`;
-  document.getElementById('mex-motivo').value='';
-  document.getElementById('mo-excluir').classList.add('on');
-}
-async function confirmarExclusao(){
-  const id=document.getElementById('mex-hid').value;
-  const motivo=document.getElementById('mex-motivo').value.trim();
-  if(!motivo)return nt('Informe o motivo da exclusão',true);
-  try{await api(`/api/pedidos/${id}`,{method:'DELETE',body:JSON.stringify({motivo})});fMo();nt('Pedido excluído.');await carregarKanban()}catch(e){nt('Erro',true)}
-}
+app.post('/api/pedidos/:id/cancelar', async (req, res) => {
+  const {id}=req.params; const {motivo}=req.body;
+  try {
+    const p=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
+    if(!p) return res.status(404).json({error:'Não encontrado'});
+    await pool.query("UPDATE pedidos SET status='cancelado' WHERE id=$1",[id]);
+    await pool.query('DELETE FROM estado_pedido WHERE telefone=$1',[p.telefone]);
+    await regHist(id,'cancelado',motivo||'Cancelado',{status:p.status},{status:'cancelado'});
+    await enviarWA(p.telefone,`😔 Seu pedido #${p.id} foi cancelado.${motivo?'\n\nMotivo: '+motivo:''}\n\nQualquer dúvida entre em contato. 😊`);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function chamarEntRap(pedId){
-  const ents=await api('/api/entregadores');
-  const ativos=(ents||[]).filter(e=>e.ativo);
-  if(!ativos.length)return nt('Nenhum entregador ativo',true);
-  const lista=ativos.map((e,i)=>`${i+1}. ${e.nome}`).join('\n');
-  const esc=prompt(`Chamar entregador:\n${lista}\n\nDigite o número:`);
-  if(!esc)return;
-  const ent=ativos[parseInt(esc)-1];
-  if(!ent)return nt('Inválido',true);
-  try{await api(`/api/entregadores/${ent.id}/chamar`,{method:'POST',body:JSON.stringify({pedido_id:pedId})});nt(`✅ ${ent.nome} notificado!`)}catch(e){nt('Erro',true)}
-}
+app.get('/api/atendimento-pendente', async (req, res) => {
+  try {
+    const r=await pool.query("SELECT ep.*,(SELECT mensagem FROM conversas WHERE telefone=ep.telefone AND role='user' ORDER BY criado_em DESC LIMIT 1)as ultima_mensagem FROM estado_pedido ep WHERE ep.aguardando_atendente=TRUE OR ep.etapa='aguardando_verificacao' ORDER BY ep.atualizado_em ASC");
+    res.json(r.rows);
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-function abrirEditPed(id){
-  const p=todos.find(x=>x.id===id);if(!p)return;
-  document.getElementById('mp-hid').value=id;
-  document.getElementById('mp-id').textContent=`#${id}`;
-  document.getElementById('mp-nom').value=p.nome_cliente||'';
-  document.getElementById('mp-its').value=p.itens||'';
-  document.getElementById('mp-age').value=p.observacoes||'';
-  document.getElementById('mp-tipo').value=p.tipo||'retirada';
-  document.getElementById('mp-pag').value=p.forma_pagamento||'Pix';
-  document.getElementById('mp-val').value=p.valor_total||'';
-  document.getElementById('mp-end').value=p.endereco||'';
-  if(p.data_agendamento)document.getElementById('mp-dagend').value=p.data_agendamento.slice(0,16);
-  toggleMpEnd();
-  api('/api/entregadores').then(ents=>{document.getElementById('mp-ent').innerHTML='<option value="">— Nenhum —</option>'+(ents||[]).filter(e=>e.ativo).map(e=>`<option value="${e.id}">${e.nome}</option>`).join('')});
-  document.getElementById('mo-ped').classList.add('on');
-}
-function toggleMpEnd(){document.getElementById('mp-endg').style.display=document.getElementById('mp-tipo').value==='entrega'?'block':'none'}
-async function salvarPedido(){
-  const id=document.getElementById('mp-hid').value;
-  const tipo=document.getElementById('mp-tipo').value;
-  const entId=document.getElementById('mp-ent').value;
-  const d={nome_cliente:document.getElementById('mp-nom').value,itens:document.getElementById('mp-its').value,observacoes:document.getElementById('mp-age').value,data_agendamento:document.getElementById('mp-dagend').value||null,tipo,forma_pagamento:document.getElementById('mp-pag').value,valor_total:document.getElementById('mp-val').value||null,endereco:tipo==='entrega'?document.getElementById('mp-end').value:null};
-  try{await api(`/api/pedidos/${id}/editar`,{method:'PATCH',body:JSON.stringify(d)});if(entId)await api(`/api/entregadores/${entId}/chamar`,{method:'POST',body:JSON.stringify({pedido_id:parseInt(id)})});fMo();nt('✅ Salvo!');await carregarKanban()}catch(e){nt('Erro',true)}
-}
-async function verHist(id){document.getElementById('mh-id').textContent=`#${id}`;try{const h=await api(`/api/pedidos/${id}/historico`);const l=document.getElementById('mh-lst');l.innerHTML=(h||[]).length?(h||[]).map(x=>`<div class="ir"><div class="in"><div class="inm">${x.acao}</div><div class="ins">${x.descricao||''} · ${new Date(x.criado_em).toLocaleString('pt-BR')}</div></div></div>`).join(''):'<p style="font-size:11px;color:var(--g)">Sem histórico.</p>';document.getElementById('mo-hist').classList.add('on')}catch(e){nt('Erro',true)}}
+app.post('/api/atendimento-pendente/:telefone/liberar', async (req, res) => {
+  try { await pool.query("UPDATE estado_pedido SET aguardando_atendente=FALSE,etapa='idle',atualizado_em=NOW() WHERE telefone=$1",[req.params.telefone]); res.json({success:true}); }
+  catch(e) { res.status(500).json({error:e.message}); }
+});
 
 // ===== COMBOS =====
-async function carregarCombos(){
-  try{
-    const combos=await api('/api/combos');
-    const c=document.getElementById('lista-combos');
-    if(!(combos||[]).length){c.innerHTML='<div class="es"><p>Nenhum combo cadastrado.</p></div>';return}
-    c.innerHTML=(combos||[]).map(cb=>`<div class="pc ${!cb.disponivel?'off':''}">
-      <div class="pim">${cb.imagem_url?`<img src="${cb.imagem_url}" alt="${cb.nome}" loading="lazy">`:'🎁'}</div>
-      <div class="pb">
-        <div class="pcat">COMBO${cb.destaque?' ⭐':''}</div>
-        <div class="pnom">${cb.nome}</div>
-        ${cb.descricao?`<div class="pdsc">${cb.descricao}</div>`:''}
-        <div style="display:flex;align-items:baseline;gap:6px">
-          <div class="ppr">R$ ${Number(cb.preco).toFixed(2)}</div>
-          ${cb.preco_original?`<div style="font-size:11px;color:var(--g);text-decoration:line-through">R$ ${Number(cb.preco_original).toFixed(2)}</div>`:''}
-        </div>
-        <div style="font-size:10px;color:var(--g);margin-top:4px">${(cb.itens||[]).map(i=>`${i.quantidade}x ${i.produto_nome}`).join(', ')}</div>
-      </div>
-      <div class="pft">
-        <div class="tmini" onclick="tgCombo(${cb.id},${!cb.disponivel})"><div class="tm ${cb.disponivel?'on':''}"></div><span>${cb.disponivel?'Disp.':'Indisp.'}</span></div>
-        <div style="display:flex;gap:3px">
-          <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editCombo(${cb.id})">✏️</button>
-          <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delCombo(${cb.id},'${cb.nome.replace(/'/g,"\\'")}')">🗑️</button>
-        </div>
-      </div>
-    </div>`).join('');
-  }catch(e){console.error(e)}
-}
+app.get('/api/combos', async (req, res) => {
+  try {
+    const combos = (await pool.query('SELECT * FROM combos ORDER BY destaque DESC, ordem, nome')).rows;
+    for (const c of combos) {
+      c.itens = (await pool.query(`SELECT ci.*,p.nome as produto_nome,p.preco as produto_preco,p.unidade FROM combo_itens ci JOIN produtos p ON ci.produto_id=p.id WHERE ci.combo_id=$1`,[c.id])).rows;
+    }
+    res.json(combos);
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function tgCombo(id,d){try{await api(`/api/combos/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'✅ Disponível!':'⛔ Indisponível!');carregarCombos()}catch(e){nt('Erro',true)}}
+app.post('/api/combos', async (req, res) => {
+  const {nome,descricao,preco,preco_original,imagem_url,disponivel,permite_delivery,permite_retirada,permite_salao,tipo_pedido,destaque,ordem,itens}=req.body;
+  try {
+    const r=await pool.query('INSERT INTO combos(nome,descricao,preco,preco_original,imagem_url,disponivel,permite_delivery,permite_retirada,permite_salao,tipo_pedido,destaque,ordem)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)RETURNING *',
+      [nome,descricao,preco,preco_original,imagem_url,disponivel!==false,permite_delivery!==false,permite_retirada!==false,permite_salao||false,tipo_pedido||'ambos',destaque||false,ordem||0]);
+    const comboId=r.rows[0].id;
+    if(itens?.length) {
+      for(const item of itens) {
+        await pool.query('INSERT INTO combo_itens(combo_id,produto_id,quantidade,descricao_item)VALUES($1,$2,$3,$4)',[comboId,item.produto_id,item.quantidade||1,item.descricao_item]);
+      }
+    }
+    res.json({success:true,combo:r.rows[0]});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function abrirCombo(cb=null){
-  document.getElementById('cb-id').value=cb?.id||'';
-  document.getElementById('mcb-tt').textContent=cb?'✏️ Editar Combo':'🎁 Novo Combo';
-  document.getElementById('cb-nom').value=cb?.nome||'';
-  document.getElementById('cb-dsc').value=cb?.descricao||'';
-  document.getElementById('cb-pre').value=cb?.preco||'';
-  document.getElementById('cb-preo').value=cb?.preco_original||'';
-  document.getElementById('cb-dest').checked=cb?.destaque||false;
-  cbItens=cb?.itens?.map(i=>({produto_id:i.produto_id,quantidade:i.quantidade,descricao_item:i.descricao_item,nome:i.produto_nome}))||[];
-  const cans=document.querySelectorAll('#cb-canais .canal');
-  cans[0].classList.toggle('on',cb?.permite_delivery!==false);
-  cans[1].classList.toggle('on',cb?.permite_retirada!==false);
-  cans[2].classList.toggle('on',cb?.permite_salao||false);
-  document.getElementById('cb-prv').style.display=cb?.imagem_url?'block':'none';
-  if(cb?.imagem_url)document.getElementById('cb-prv').src=cb.imagem_url;
-  cbImgB64=null;cbImgTp=null;
-  // Popula produtos
-  const ps=await api('/api/produtos');
-  document.getElementById('cb-prod-sel').innerHTML='<option value="">Selecione...</option>'+(ps||[]).map(p=>`<option value="${p.id}" data-nome="${p.nome}">${p.nome} (R$${Number(p.preco).toFixed(2)})</option>`).join('');
-  renderCbItens();
-  document.getElementById('mo-combo').classList.add('on');
-}
+app.patch('/api/combos/:id', async (req, res) => {
+  const {id}=req.params; const body=req.body;
+  try {
+    const f=[]; const v=[]; let i=1;
+    ['nome','descricao','preco','preco_original','imagem_url','disponivel','permite_delivery','permite_retirada','permite_salao','tipo_pedido','destaque','ordem'].forEach(c=>{if(body[c]!==undefined){f.push(`${c}=$${i++}`);v.push(body[c])}});
+    if(f.length){v.push(id);await pool.query(`UPDATE combos SET ${f.join(',')} WHERE id=$${i}`,v);}
+    if(body.itens) {
+      await pool.query('DELETE FROM combo_itens WHERE combo_id=$1',[id]);
+      for(const item of body.itens) {
+        await pool.query('INSERT INTO combo_itens(combo_id,produto_id,quantidade,descricao_item)VALUES($1,$2,$3,$4)',[id,item.produto_id,item.quantidade||1,item.descricao_item]);
+      }
+    }
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
 
-function renderCbItens(){
-  document.getElementById('cb-itens-lista').innerHTML=cbItens.length?cbItens.map((it,i)=>`<div style="display:flex;align-items:center;gap:6px;background:var(--cr);border-radius:6px;padding:5px 8px"><div style="flex:1;font-size:11px">${it.quantidade}x ${it.nome}${it.descricao_item?' ('+it.descricao_item+')':''}</div><button class="btn br" style="font-size:9px;padding:2px 6px" onclick="remCbItem(${i})">✕</button></div>`).join(''):'<p style="font-size:11px;color:var(--g)">Nenhum produto adicionado.</p>';
-}
-function remCbItem(i){cbItens.splice(i,1);renderCbItens()}
-function addItemCombo(){
-  const sel=document.getElementById('cb-prod-sel');
-  const id=parseInt(sel.value);if(!id)return nt('Selecione um produto',true);
-  const nome=sel.options[sel.selectedIndex].dataset.nome;
-  const qtd=parseFloat(document.getElementById('cb-prod-qtd').value)||1;
-  const obs=document.getElementById('cb-prod-obs').value;
-  cbItens.push({produto_id:id,quantidade:qtd,descricao_item:obs,nome});
-  document.getElementById('cb-prod-sel').value='';
-  document.getElementById('cb-prod-obs').value='';
-  renderCbItens();
-}
+app.patch('/api/combos/:id/disponibilidade', async (req, res) => {
+  try { await pool.query('UPDATE combos SET disponivel=$1 WHERE id=$2',[req.body.disponivel,req.params.id]); res.json({success:true}); }
+  catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function saveCombo(){
-  const id=document.getElementById('cb-id').value;
-  if(!cbItens.length)return nt('Adicione pelo menos um produto',true);
-  const cans=document.querySelectorAll('#cb-canais .canal');
-  const d={nome:document.getElementById('cb-nom').value,descricao:document.getElementById('cb-dsc').value,preco:document.getElementById('cb-pre').value,preco_original:document.getElementById('cb-preo').value||null,permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on'),destaque:document.getElementById('cb-dest').checked,itens:cbItens};
-  if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);
-  try{
-    let cbId=id;
-    if(id){await api(`/api/combos/${id}`,{method:'PATCH',body:JSON.stringify(d)})}
-    else{const r=await api('/api/combos',{method:'POST',body:JSON.stringify(d)});cbId=r?.combo?.id}
-    if(cbImgB64&&cbId)await api(`/api/combos/${cbId}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:cbImgB64,tipo:cbImgTp})});
-    fMo();nt('✅ Combo salvo!');carregarCombos();
-  }catch(e){nt('Erro',true)}
-}
+app.post('/api/combos/:id/imagem', async (req, res) => {
+  const {imagem_base64,tipo}=req.body;
+  try { await pool.query('UPDATE combos SET imagem_url=$1 WHERE id=$2',[`data:${tipo||'image/jpeg'};base64,${imagem_base64}`,req.params.id]); res.json({success:true}); }
+  catch(e) { res.status(500).json({error:e.message}); }
+});
 
-async function editCombo(id){const cs=await api('/api/combos');const cb=cs?.find(x=>x.id===id);if(cb)abrirCombo(cb)}
-async function delCombo(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/combos/${id}`,{method:'DELETE'});nt('Removido.');carregarCombos()}catch(e){nt('Erro',true)}}
-
-// ===== PRODUTOS =====
-async function carregarProds(){
-  try{
-    const cats=await api('/api/categorias');
-    const f=document.getElementById('filt-cat');
-    f.innerHTML=`<button style="padding:4px 10px;border-radius:100px;border:2px solid var(--m);background:${filtroCatProd==='todas'?'var(--m)':'transparent'};color:${filtroCatProd==='todas'?'#fff':'var(--m)'};font-size:10px;cursor:pointer;font-weight:500" onclick="setFP('todas',this)">Todos</button>`+(cats||[]).map(c=>`<button style="padding:4px 10px;border-radius:100px;border:2px solid var(--m);background:${filtroCatProd===c.nome?'var(--m)':'transparent'};color:${filtroCatProd===c.nome?'#fff':'var(--m)'};font-size:10px;cursor:pointer;font-weight:500" onclick="setFP('${c.nome}',this)">${c.nome}</button>`).join('');
-    const sel=document.getElementById('pp-cat');
-    sel.innerHTML='<option value="">Selecione...</option>'+(cats||[]).map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
-    const ps=await api('/api/produtos');
-    const fil=filtroCatProd==='todas'?ps:ps?.filter(p=>p.categoria===filtroCatProd);
-    const con=document.getElementById('lista-prods');
-    if(!(fil||[]).length){con.innerHTML='<div class="es"><p>Nenhum produto.</p></div>';return}
-    con.innerHTML=(fil||[]).map(p=>`<div class="pc ${!p.disponivel?'off':''}">
-      <div class="pim">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}" loading="lazy">`:'🍞'}</div>
-      <div class="pb">
-        <div class="pcat">${p.categoria||'—'}</div>
-        <div class="pnom">${p.destaque?'⭐ ':''}${p.nome}</div>
-        ${p.descricao?`<div class="pdsc">${p.descricao}</div>`:''}
-        <div class="ppr">R$ ${Number(p.preco).toFixed(2)} <span class="pun">/ ${p.unidade}</span></div>
-        <div class="ptags">
-          <span class="ptag">${p.tipo_pedido==='agendamento'?'📅':p.tipo_pedido==='hora'?'⚡':'📅⚡'}</span>
-          ${p.permite_delivery?'<span class="ptag on">🛵</span>':'<span class="ptag" style="background:#f8d7da;color:#842029">🚫🛵</span>'}
-          ${p.permite_retirada?'<span class="ptag on">🏪</span>':''}
-          ${p.permite_salao?'<span class="ptag on">🍽️</span>':''}
-          ${p.total_vendas>0?`<span class="ptag">🔥${p.total_vendas}</span>`:''}
-        </div>
-      </div>
-      <div class="pft">
-        <div class="tmini" onclick="tgProd(${p.id},${!p.disponivel})"><div class="tm ${p.disponivel?'on':''}"></div><span>${p.disponivel?'Disp.':'Indisp.'}</span></div>
-        <div style="display:flex;gap:3px">
-          <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editProd(${p.id})">✏️</button>
-          <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="abrirComp(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🧩</button>
-          <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delProd(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🗑️</button>
-        </div>
-      </div>
-    </div>`).join('');
-  }catch(e){console.error(e)}
-}
-function setFP(c){filtroCatProd=c;carregarProds()}
-async function tgProd(id,d){try{await api(`/api/produtos/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'✅':'⛔');carregarProds()}catch(e){nt('Erro',true)}}
-function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;document.getElementById('mo-prod').classList.add('on')}
-async function editProd(id){const ps=await api('/api/produtos');const p=ps?.find(x=>x.id===id);if(!p)return;abrirProduto(p);if(p.imagem_url){const img=document.getElementById('pp-prv');img.src=p.imagem_url;img.style.display='block'}}
-function prevImg(inp,previewId){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(previewId);img.src=e.target.result;img.style.display='block';const b64=e.target.result.split(',')[1];const tp=f.type;if(previewId==='pp-prv'){prodImgB64=b64;prodImgTp=tp}else{cbImgB64=b64;cbImgTp=tp}};r.readAsDataURL(f)}
-async function saveProd(){const id=document.getElementById('pp-id').value;const c=document.querySelectorAll('#pp-canais .canal');const cSel=document.getElementById('pp-cat');const d={nome:document.getElementById('pp-nom').value,categoria:cSel.options[cSel.selectedIndex]?.text||'',categoria_id:cSel.value||null,descricao:document.getElementById('pp-dsc').value,preco:document.getElementById('pp-pre').value,unidade:document.getElementById('pp-uni').value,tipo_pedido:document.getElementById('pp-tip').value,permite_delivery:c[0].classList.contains('on'),permite_retirada:c[1].classList.contains('on'),permite_salao:c[2].classList.contains('on'),destaque:document.getElementById('pp-dest').checked};if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);try{let pid=id;if(id)await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify(d)});else{const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(d)});pid=r?.produto?.id}if(prodImgB64&&pid)await api(`/api/produtos/${pid}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:prodImgB64,tipo:prodImgTp})});fMo();nt('✅ Produto salvo!');carregarProds()}catch(e){nt('Erro',true)}}
-async function delProd(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/produtos/${id}`,{method:'DELETE'});nt('Removido.');carregarProds()}catch(e){nt('Erro',true)}}
-
-// ===== COMPLEMENTOS =====
-async function abrirComp(pid,pnom){document.getElementById('mc-pid').value=pid;document.getElementById('mc-pnom').textContent=pnom;await carregarComp();document.getElementById('mo-comp').classList.add('on')}
-async function carregarComp(){const pid=document.getElementById('mc-pid').value;try{const g=await api(`/api/produtos/${pid}/complementos`);const c=document.getElementById('mc-grupos');if(!(g||[]).length){c.innerHTML='<p style="font-size:11px;color:var(--g);margin-bottom:8px">Nenhum complemento.</p>';return}c.innerHTML=(g||[]).map(x=>`<div style="background:var(--cr);border-radius:8px;padding:9px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div><div style="font-size:12px;font-weight:500">${x.nome}</div><div style="font-size:10px;color:var(--g)">${x.obrigatorio?'Obrigatório':'Opcional'} · ${x.min_selecao}-${x.max_selecao}</div></div><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delGrupo(${x.id})">🗑️</button></div><div style="display:grid;gap:4px;margin-bottom:6px">${(x.itens||[]).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:6px;padding:5px 8px"><span style="font-size:11px">${i.nome}${i.preco_adicional>0?' <span style="color:var(--v)">+R$ '+Number(i.preco_adicional).toFixed(2)+'</span>':''}</span><button class="btn br" style="font-size:9px;padding:2px 5px" onclick="delItem(${i.id})">✕</button></div>`).join('')}</div><div style="display:flex;gap:5px"><input id="ni-n-${x.id}" placeholder="Novo item..." style="flex:1;padding:5px 7px;border:1px solid rgba(61,31,10,.15);border-radius:6px;font-size:11px;background:#fff;outline:none"><input id="ni-p-${x.id}" type="number" placeholder="+R$" step="0.50" style="width:55px;padding:5px 7px;border:1px solid rgba(61,31,10,.15);border-radius:6px;font-size:11px;background:#fff;outline:none"><button class="btn bc" style="font-size:10px;padding:4px 7px" onclick="addItem(${x.id})">+</button></div></div>`).join('')}catch(e){}}
-async function addGrupo(){const pid=document.getElementById('mc-pid').value;const n=document.getElementById('ng-nom').value;if(!n)return nt('Informe o nome',true);const d={produto_id:parseInt(pid),nome:n,obrigatorio:document.getElementById('ng-obr').value==='true',min_selecao:parseInt(document.getElementById('ng-min').value)||0,max_selecao:parseInt(document.getElementById('ng-max').value)||1};try{await api('/api/complementos/grupos',{method:'POST',body:JSON.stringify(d)});document.getElementById('ng-nom').value='';nt('✅');await carregarComp()}catch(e){nt('Erro',true)}}
-async function addItem(gid){const n=document.getElementById(`ni-n-${gid}`).value;const p=parseFloat(document.getElementById(`ni-p-${gid}`).value)||0;if(!n)return nt('Informe o item',true);try{await api('/api/complementos/itens',{method:'POST',body:JSON.stringify({grupo_id:gid,nome:n,preco_adicional:p})});nt('✅');await carregarComp()}catch(e){nt('Erro',true)}}
-async function delGrupo(id){if(!confirm('Remover grupo?'))return;try{await api(`/api/complementos/grupos/${id}`,{method:'DELETE'});await carregarComp()}catch(e){nt('Erro',true)}}
-async function delItem(id){try{await api(`/api/complementos/itens/${id}`,{method:'DELETE'});await carregarComp()}catch(e){nt('Erro',true)}}
+app.delete('/api/combos/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM combos WHERE id=$1',[req.params.id]); res.json({success:true}); }
+  catch(e) { res.status(500).json({error:e.message}); }
+});
 
 // ===== CATEGORIAS =====
-async function carregarCats(){try{const c=await api('/api/categorias');const el=document.getElementById('lista-cats');el.innerHTML=(c||[]).length?(c||[]).map(x=>{const dias=(x.dias_semana||[0,1,2,3,4,5,6]).map(d=>DIAS[d]).join(', ');return`<div class="ir" style="flex-wrap:wrap;gap:6px"><div class="in"><div class="inm">${x.disponivel?'🟢':'🔴'} ${x.nome}</div><div class="ins">${x.descricao||'—'} · ${dias} · ${x.horario_inicio?.slice(0,5)||'06:00'}-${x.horario_fim?.slice(0,5)||'20:00'}</div><div style="display:flex;gap:3px;margin-top:3px">${x.permite_delivery?'<span style="font-size:9px;padding:1px 5px;background:#d1e7dd;color:#0a3622;border-radius:100px">🛵</span>':''}${x.permite_retirada?'<span style="font-size:9px;padding:1px 5px;background:#cfe2ff;color:#084298;border-radius:100px">🏪</span>':''}${x.permite_salao?'<span style="font-size:9px;padding:1px 5px;background:#fef3cd;color:#856404;border-radius:100px">🍽️</span>':''}</div></div><div class="ia"><div class="tmini" onclick="tgCat(${x.id},${!x.disponivel})"><div class="tm ${x.disponivel?'on':''}"></div></div><button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editCat(${x.id})">✏️</button><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delCat(${x.id},'${x.nome.replace(/'/g,"\\'")}')">🗑️</button></div></div>`}).join(''):'<div class="es"><p>Nenhuma categoria.</p></div>'}catch(e){}}
-async function tgCat(id,d){try{await api(`/api/categorias/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'🟢':'🔴');carregarCats()}catch(e){nt('Erro',true)}}
-function abrirCategoria(c=null){document.getElementById('mct-id').value=c?.id||'';document.getElementById('mct-tt').textContent=c?'✏️ Editar':'📂 Nova Categoria';document.getElementById('mct-nom').value=c?.nome||'';document.getElementById('mct-dsc').value=c?.descricao||'';document.getElementById('mct-hi').value=c?.horario_inicio?.slice(0,5)||'06:00';document.getElementById('mct-hf').value=c?.horario_fim?.slice(0,5)||'20:00';const dias=c?.dias_semana||[0,1,2,3,4,5,6];document.querySelectorAll('#mct-dias .dia').forEach(b=>b.classList.toggle('on',dias.includes(parseInt(b.dataset.d))));const cans=document.querySelectorAll('#mct-canais .canal');cans[0].classList.toggle('on',c?.permite_delivery!==false);cans[1].classList.toggle('on',c?.permite_retirada!==false);cans[2].classList.toggle('on',c?.permite_salao||false);document.getElementById('mo-cat').classList.add('on')}
-async function editCat(id){const c=await api('/api/categorias');const x=c?.find(y=>y.id===id);if(x)abrirCategoria(x)}
-async function saveCat(){const id=document.getElementById('mct-id').value;const dias=[];document.querySelectorAll('#mct-dias .dia.on').forEach(b=>dias.push(parseInt(b.dataset.d)));const cans=document.querySelectorAll('#mct-canais .canal');const d={nome:document.getElementById('mct-nom').value,descricao:document.getElementById('mct-dsc').value,horario_inicio:document.getElementById('mct-hi').value,horario_fim:document.getElementById('mct-hf').value,dias_semana:'{'+dias.join(',')+'}',permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on')};if(!d.nome)return nt('Informe o nome',true);try{if(id)await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify(d)});else await api('/api/categorias',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Categoria salva!');carregarCats()}catch(e){nt('Erro',true)}}
-async function delCat(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/categorias/${id}`,{method:'DELETE'});nt('Removida.');carregarCats()}catch(e){nt('Erro',true)}}
+app.get('/api/categorias',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM categorias ORDER BY ordem,nome')).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/categorias',async(req,res)=>{const{nome,descricao,disponivel,dias_semana,horario_inicio,horario_fim,permite_delivery,permite_retirada,permite_salao,imagem_url,ordem}=req.body;try{const r=await pool.query('INSERT INTO categorias(nome,descricao,disponivel,dias_semana,horario_inicio,horario_fim,permite_delivery,permite_retirada,permite_salao,imagem_url,ordem)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)RETURNING *',[nome,descricao,disponivel!==false,dias_semana||'{0,1,2,3,4,5,6}',horario_inicio||'06:00',horario_fim||'20:00',permite_delivery!==false,permite_retirada!==false,permite_salao||false,imagem_url,ordem||0]);res.json({success:true,categoria:r.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.patch('/api/categorias/:id',async(req,res)=>{const f=[];const v=[];let i=1;['nome','descricao','disponivel','dias_semana','horario_inicio','horario_fim','permite_delivery','permite_retirada','permite_salao','imagem_url','ordem'].forEach(c=>{if(req.body[c]!==undefined){f.push(`${c}=$${i++}`);v.push(req.body[c])}});if(!f.length)return res.json({success:true});v.push(req.params.id);try{await pool.query(`UPDATE categorias SET ${f.join(',')} WHERE id=$${i}`,v);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.patch('/api/categorias/:id/disponibilidade',async(req,res)=>{try{await pool.query('UPDATE categorias SET disponivel=$1 WHERE id=$2',[req.body.disponivel,req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/categorias/:id',async(req,res)=>{try{await pool.query('DELETE FROM categorias WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+
+// ===== PRODUTOS =====
+app.get('/api/produtos',async(req,res)=>{try{const{apenas_disponiveis,categoria_id}=req.query;let q=`SELECT p.*,c.nome as categoria_nome FROM produtos p LEFT JOIN categorias c ON p.categoria_id=c.id WHERE 1=1`;const params=[];if(apenas_disponiveis==='true')q+=' AND p.disponivel=true';if(categoria_id){q+=` AND p.categoria_id=$${params.length+1}`;params.push(categoria_id)}q+=' ORDER BY p.categoria,p.ordem,p.nome';res.json((await pool.query(q,params)).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/produtos',async(req,res)=>{const{nome,categoria,categoria_id,descricao,preco,unidade,disponivel,imagem_url,ordem,tipo_pedido,permite_delivery,permite_retirada,permite_salao,destaque}=req.body;try{const r=await pool.query('INSERT INTO produtos(nome,categoria,categoria_id,descricao,preco,unidade,disponivel,imagem_url,ordem,tipo_pedido,permite_delivery,permite_retirada,permite_salao,destaque,criado_em,atualizado_em)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW())RETURNING *',[nome,categoria,categoria_id,descricao,preco,unidade||'unidade',disponivel!==false,imagem_url,ordem||0,tipo_pedido||'ambos',permite_delivery!==false,permite_retirada!==false,permite_salao||false,destaque||false]);res.json({success:true,produto:r.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.patch('/api/produtos/:id',async(req,res)=>{const f=[];const v=[];let i=1;['nome','categoria','categoria_id','descricao','preco','unidade','disponivel','imagem_url','ordem','tipo_pedido','permite_delivery','permite_retirada','permite_salao','destaque'].forEach(c=>{if(req.body[c]!==undefined){f.push(`${c}=$${i++}`);v.push(req.body[c])}});f.push('atualizado_em=NOW()');v.push(req.params.id);try{await pool.query(`UPDATE produtos SET ${f.join(',')} WHERE id=$${i}`,v);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.patch('/api/produtos/:id/disponibilidade',async(req,res)=>{try{await pool.query('UPDATE produtos SET disponivel=$1,atualizado_em=NOW() WHERE id=$2',[req.body.disponivel,req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/produtos/:id',async(req,res)=>{try{await pool.query('DELETE FROM produtos WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/produtos/:id/imagem',async(req,res)=>{const{imagem_base64,tipo}=req.body;try{await pool.query('UPDATE produtos SET imagem_url=$1,atualizado_em=NOW() WHERE id=$2',[`data:${tipo||'image/jpeg'};base64,${imagem_base64}`,req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+
+app.get('/api/cardapio',async(req,res)=>{
+  try{
+    const prods=(await pool.query('SELECT p.*,c.nome as cat_nome FROM produtos p LEFT JOIN categorias c ON p.categoria_id=c.id WHERE p.disponivel=true ORDER BY p.categoria,p.ordem,p.nome')).rows;
+    const combos=(await pool.query('SELECT * FROM combos WHERE disponivel=true ORDER BY destaque DESC,ordem,nome')).rows;
+    const cats={};
+    prods.forEach(p=>{const c=p.categoria||p.cat_nome||'Geral';if(!cats[c])cats[c]=[];cats[c].push(`  - ${p.nome}: R$ ${Number(p.preco).toFixed(2)}/${p.unidade}${p.descricao?' ('+p.descricao+')':''}`)});
+    if(combos.length){cats['Combos']=combos.map(c=>`  - ${c.nome}: R$ ${Number(c.preco).toFixed(2)} (Combo especial${c.descricao?' - '+c.descricao:''})`)}
+    res.json({values:Object.entries(cats).map(([c,i])=>`${c}:\n${i.join('\n')}`).join('\n\n'),produtos:prods,combos});
+  }catch(e){res.status(500).json({error:e.message})}
+});
+
+// ===== COMPLEMENTOS =====
+app.get('/api/produtos/:id/complementos',async(req,res)=>{try{const g=(await pool.query('SELECT * FROM complementos_grupos WHERE produto_id=$1 ORDER BY ordem',[req.params.id])).rows;for(const x of g)x.itens=(await pool.query('SELECT * FROM complementos_itens WHERE grupo_id=$1 ORDER BY ordem',[x.id])).rows;res.json(g)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/complementos/grupos',async(req,res)=>{const{produto_id,nome,descricao,obrigatorio,min_selecao,max_selecao,ordem}=req.body;try{const r=await pool.query('INSERT INTO complementos_grupos(produto_id,nome,descricao,obrigatorio,min_selecao,max_selecao,ordem)VALUES($1,$2,$3,$4,$5,$6,$7)RETURNING *',[produto_id,nome,descricao,obrigatorio||false,min_selecao||0,max_selecao||1,ordem||0]);res.json({success:true,grupo:r.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/complementos/grupos/:id',async(req,res)=>{try{await pool.query('DELETE FROM complementos_grupos WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/complementos/itens',async(req,res)=>{const{grupo_id,nome,descricao,preco_adicional,disponivel,ordem}=req.body;try{const r=await pool.query('INSERT INTO complementos_itens(grupo_id,nome,descricao,preco_adicional,disponivel,ordem)VALUES($1,$2,$3,$4,$5,$6)RETURNING *',[grupo_id,nome,descricao,preco_adicional||0,disponivel!==false,ordem||0]);res.json({success:true,item:r.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/complementos/itens/:id',async(req,res)=>{try{await pool.query('DELETE FROM complementos_itens WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
 // ===== ENTREGADORES =====
-async function carregarEnts(){try{const l=await api('/api/entregadores');const c=document.getElementById('lista-ents');c.innerHTML=(l||[]).length?(l||[]).map(e=>`<div class="ir"><div class="in"><div class="inm">${e.ativo?'🟢':'🔴'} ${e.nome}</div><div class="ins">📱 ${e.telefone} · ${e.total_entregas} entregas</div></div><div class="ia"><div class="tmini" onclick="tgEnt(${e.id},${!e.ativo})"><div class="tm ${e.ativo?'on':''}"></div></div><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delEnt(${e.id},'${e.nome.replace(/'/g,"\\'")}')">🗑️</button></div></div>`).join(''):'<div class="es"><p>Nenhum entregador.</p></div>'}catch(e){}}
-async function addEnt(){const n=document.getElementById('ent-n').value.trim(),t=document.getElementById('ent-t').value.trim();if(!n||!t)return nt('Preencha nome e WhatsApp',true);try{await api('/api/entregadores',{method:'POST',body:JSON.stringify({nome:n,telefone:t})});['ent-n','ent-t'].forEach(x=>document.getElementById(x).value='');nt('✅ Adicionado!');carregarEnts()}catch(e){nt('Erro',true)}}
-async function tgEnt(id,a){try{await api(`/api/entregadores/${id}`,{method:'PATCH',body:JSON.stringify({ativo:a})});nt(a?'✅':'⛔');carregarEnts()}catch(e){nt('Erro',true)}}
-async function delEnt(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/entregadores/${id}`,{method:'DELETE'});nt('Removido.');carregarEnts()}catch(e){nt('Erro',true)}}
+app.get('/api/entregadores',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM entregadores ORDER BY ativo DESC,nome')).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/entregadores',async(req,res)=>{const{nome,telefone}=req.body;try{const r=await pool.query('INSERT INTO entregadores(nome,telefone)VALUES($1,$2)RETURNING *',[nome,telefone]);res.json({success:true,entregador:r.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.patch('/api/entregadores/:id',async(req,res)=>{const{nome,telefone,ativo}=req.body;try{const f=[];const v=[];let i=1;if(nome!==undefined){f.push(`nome=$${i++}`);v.push(nome)}if(telefone!==undefined){f.push(`telefone=$${i++}`);v.push(telefone)}if(ativo!==undefined){f.push(`ativo=$${i++}`);v.push(ativo)}v.push(req.params.id);await pool.query(`UPDATE entregadores SET ${f.join(',')} WHERE id=$${i}`,v);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/entregadores/:id',async(req,res)=>{try{await pool.query('DELETE FROM entregadores WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/entregadores/:id/chamar',async(req,res)=>{const{pedido_id}=req.body;try{const ent=(await pool.query('SELECT * FROM entregadores WHERE id=$1',[req.params.id])).rows[0];const ped=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[pedido_id])).rows[0];if(!ent||!ped)return res.status(404).json({error:'Não encontrado'});const msg=`🛵 *NOVO PEDIDO PARA ENTREGA*\n\n📦 *Pedido #${ped.id}*\n👤 ${ped.nome_cliente||'—'}\n📱 ${ped.telefone}\n📍 ${ped.endereco||'—'}\n🛍️ ${ped.itens||'—'}\n💳 ${ped.forma_pagamento||'—'}\n💰 R$ ${ped.valor_total?Number(ped.valor_total).toFixed(2):'—'}`;await enviarWA(ent.telefone,msg);await pool.query('UPDATE entregadores SET total_entregas=total_entregas+1 WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
 // ===== PONTOS =====
-async function carregarPontos(){try{const l=await api('/api/pontos');const c=document.getElementById('lista-pontos');c.innerHTML=(l||[]).length?(l||[]).map(p=>`<div class="ir"><div class="in"><div class="inm">${p.nome_cliente||'—'}<span class="nivel-badge nivel-${p.nivel}" style="margin-left:6px">${p.nivel}</span></div><div class="ins">📱 ${p.telefone} · R$ ${Number(p.total_gasto||0).toFixed(2)} gasto</div></div><div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:17px;color:var(--c)">${p.pontos}</div><div style="font-size:10px;color:var(--g)">pontos</div></div></div>`).join(''):'<div class="es"><p>Nenhum cliente com pontos.</p></div>'}catch(e){}}
+// Formata e envia resumo do pedido para o cliente
+async function enviarResumodoPedido(pedido) {
+  try {
+    const p = pedido;
+    const agora = new Date();
+    const dataFormatada = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const nomeCliente = p.nome_cliente?.split(' ')[0] || 'Cliente';
+    const valorPedido = p.valor_total ? `R$ ${Number(p.valor_total).toFixed(2)}` : '—';
+    const portalLink = 'https://sublime-insight-production.up.railway.app/portal';
 
-// ===== RELATÓRIOS =====
-async function carregarRel(dias){['rel-7','rel-30','rel-90'].forEach(id=>{const el=document.getElementById(id);if(el)el.className=id===`rel-${dias}`?'btn bc':'btn bout'});
-  try{
-    const[vd,pd,ed]=await Promise.all([api(`/api/relatorios/vendas?periodo=${dias}`),api('/api/relatorios/produtos'),api('/api/relatorios/entregas')]);
-    const t=vd?.totais||{};
-    document.getElementById('rel-stats').innerHTML=`<div class="rs" style="border-color:var(--v)"><div class="rs-n">R$ ${Number(t.receita_total||0).toFixed(0)}</div><div class="rs-l">Receita Total</div></div><div class="rs" style="border-color:var(--b)"><div class="rs-n">${t.total_pedidos||0}</div><div class="rs-l">Pedidos</div></div><div class="rs" style="border-color:var(--c)"><div class="rs-n">R$ ${Number(t.ticket_medio||0).toFixed(0)}</div><div class="rs-l">Ticket Médio</div></div><div class="rs" style="border-color:var(--a)"><div class="rs-n">${(ed?.entregadores||[]).reduce((s,x)=>s+x.total_entregas,0)}</div><div class="rs-l">Entregas</div></div>`;
-    if(relC1)relC1.destroy();const ctx1=document.getElementById('ch-rec').getContext('2d');
-    relC1=new Chart(ctx1,{type:'bar',data:{labels:vd?.porDia?.map(x=>x.dia?.slice(5))||[],datasets:[{label:'R$',data:vd?.porDia?.map(x=>Number(x.receita))||[],backgroundColor:'rgba(193,127,58,.7)',borderColor:'#c17f3a',borderWidth:1}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
-    if(relC2)relC2.destroy();const ctx2=document.getElementById('ch-st').getContext('2d');
-    const cores={'confirmado':'#2d6a4f','entregue':'#8a7f75','em_producao':'#1a5276','pronto':'#e8a020','cancelado':'#c1392b','aguardando_pagamento':'#e67e22'};
-    relC2=new Chart(ctx2,{type:'doughnut',data:{labels:vd?.porStatus?.map(x=>x.status)||[],datasets:[{data:vd?.porStatus?.map(x=>x.total)||[],backgroundColor:vd?.porStatus?.map(x=>cores[x.status]||'#888')||[]}]},options:{responsive:true}});
-    if(relC3)relC3.destroy();const ctx3=document.getElementById('ch-pg').getContext('2d');
-    relC3=new Chart(ctx3,{type:'pie',data:{labels:vd?.porPgto?.map(x=>x.forma_pagamento)||[],datasets:[{data:vd?.porPgto?.map(x=>x.total)||[],backgroundColor:['#c17f3a','#2d6a4f','#1a5276','#8a7f75']}]},options:{responsive:true}});
-    document.getElementById('rel-prods').innerHTML=`<div class="gtt">🏆 Mais Vendidos</div><div class="li">${(pd?.maisVendidos||[]).map((p,i)=>`<div class="ir"><div class="in"><div class="inm">${i+1}. ${p.nome}</div><div class="ins">${p.categoria}</div></div><div style="font-family:'Playfair Display',serif;font-size:15px;color:var(--c)">${p.total_vendas} <span style="font-size:10px;color:var(--g)">vendas</span></div></div>`).join('')||'<p style="font-size:11px;color:var(--g)">Sem dados.</p>'}</div>`;
-    document.getElementById('rel-ents').innerHTML=`<div class="gtt">📍 Endereços Frequentes</div><div class="li">${(ed?.enderecos||[]).slice(0,10).map(e=>`<div class="ir"><div class="in"><div class="inm">${e.endereco}</div></div><div style="font-size:12px;font-weight:500;color:var(--b)">${e.total}x</div></div>`).join('')||'<p style="font-size:11px;color:var(--g)">Sem dados.</p>'}</div>`;
-  }catch(e){console.error(e)}
+    let msg = '';
+    if (p.tipo === 'entrega') {
+      // Calcular taxa de entrega se disponível
+      let taxaEntrega = '—';
+      let total = valorPedido;
+      try {
+        if (p.endereco) {
+          const fr = await pool.query('SELECT preco FROM faixas_entrega WHERE ativo=true LIMIT 1');
+          if (fr.rows[0]) {
+            const taxa = Number(fr.rows[0].preco);
+            taxaEntrega = `R$ ${taxa.toFixed(2)}`;
+            const totalNum = (Number(p.valor_total) || 0) + taxa;
+            total = `R$ ${totalNum.toFixed(2)}`;
+          }
+        }
+      } catch(e) {}
+
+      msg = `Oi, ${nomeCliente}! 😃\n\nRecebemos seu pedido! ✅\n\n` +
+        `#️⃣ *Nº do pedido:* #${p.id}\n` +
+        `📅 *Data do pedido:* ${dataFormatada} às ${horaFormatada}\n\n` +
+        `👤 *Cliente:* ${p.nome_cliente || '—'}\n` +
+        `📞 *Contato:* ${p.telefone || '—'}\n\n` +
+        `📍 *Endereço de entrega:* ${p.endereco || '—'}\n` +
+        `⏳ *Previsão de entrega:* Em breve entraremos em contato\n\n` +
+        `🛒 *Itens do Pedido:*\n${p.itens || '—'}\n\n` +
+        `💵 *Valor do pedido:* ${valorPedido}\n` +
+        `🚚 *Taxa de entrega:* ${taxaEntrega}\n` +
+        `💲 *Total:* ${total}\n\n` +
+        `💳 *Forma de pagamento:* ${p.forma_pagamento || '—'}\n\n` +
+        `Você também pode acompanhar seu pedido pelo link: ${portalLink}\n\n` +
+        `Até mais! 😊\n_Padaria e Confeitaria Godoy_`;
+    } else {
+      const enderecoPadaria = await getConfig('endereco_padaria') || 'R. Aquiles, 231, Vila Shangri-Lá, Apucarana/PR';
+      const agendamento = p.observacoes || (p.data_agendamento ? new Date(p.data_agendamento).toLocaleString('pt-BR') : '—');
+
+      msg = `Oi, ${nomeCliente}! 😃\n\nRecebemos seu pedido! ✅\n\n` +
+        `#️⃣ *Nº do pedido:* #${p.id}\n` +
+        `📅 *Data do pedido:* ${dataFormatada} às ${horaFormatada}\n\n` +
+        `👤 *Cliente:* ${p.nome_cliente || '—'}\n` +
+        `📞 *Contato:* ${p.telefone || '—'}\n\n` +
+        `📍 *Local de retirada:* ${enderecoPadaria.toUpperCase()}\n` +
+        `📅 *Data do agendamento:* ${agendamento}\n\n` +
+        `🛒 *Itens do Pedido:*\n${p.itens || '—'}\n\n` +
+        `💵 *Valor do pedido:* ${valorPedido}\n` +
+        `💲 *Total:* ${valorPedido}\n\n` +
+        `💳 *Forma de pagamento:* ${p.forma_pagamento || '—'}\n\n` +
+        `Você também pode acompanhar seu pedido pelo link: ${portalLink}\n\n` +
+        `Até mais! 😊\n_Padaria e Confeitaria Godoy_`;
+    }
+
+    await enviarWA(p.telefone, msg);
+  } catch(e) { console.error('Resumo WA:', e.message); }
 }
 
-// ===== VIP =====
-async function carregarVip(){try{const l=await api('/api/clientes-vip');const c=document.getElementById('lista-vip');c.innerHTML=(l||[]).length?(l||[]).map(v=>`<div class="ir"><div class="in"><div class="inm">💎 ${v.nome||'—'}</div><div class="ins">📱 ${v.telefone}${v.observacao?' · '+v.observacao:''}</div></div><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delVip('${v.telefone}')">Remover</button></div>`).join(''):'<div class="es"><p>Nenhum cliente especial.</p></div>'}catch(e){}}
-async function addVip(){const t=document.getElementById('vip-t').value.trim(),n=document.getElementById('vip-n').value.trim(),o=document.getElementById('vip-o').value.trim();if(!t||!n)return nt('Preencha telefone e nome',true);await api('/api/clientes-vip',{method:'POST',body:JSON.stringify({telefone:t,nome:n,observacao:o})});['vip-t','vip-n','vip-o'].forEach(x=>document.getElementById(x).value='');nt('✅ Adicionado!');carregarVip()}
-async function delVip(t){if(!confirm('Remover?'))return;await api(`/api/clientes-vip/${t}`,{method:'DELETE'});nt('Removido.');carregarVip()}
+async function gerarPontos(tel,nome,val,pedId){try{const a=await getConfig('cashback_ativo');if(a!=='true')return;const pr=parseInt(await getConfig('pontos_por_real')||'1');const pts=Math.floor(val*pr);if(pts<=0)return;await pool.query(`INSERT INTO pontos_cashback(telefone,nome_cliente,pontos,total_gasto)VALUES($1,$2,$3,$4)ON CONFLICT(telefone)DO UPDATE SET pontos=pontos_cashback.pontos+$3,total_gasto=pontos_cashback.total_gasto+$4,nome_cliente=$2,atualizado_em=NOW()`,[tel,nome,pts,val]);await pool.query('INSERT INTO pontos_historico(telefone,acao,pontos,descricao,pedido_id)VALUES($1,$2,$3,$4,$5)',[tel,'ganho',pts,`Pedido #${pedId}`,pedId]);const pc=(await pool.query('SELECT pontos FROM pontos_cashback WHERE telefone=$1',[tel])).rows[0];if(pc){const t=pc.pontos;const nv=t>=(await getConfig('nivel_diamante_pontos')||5000)?'diamante':t>=(await getConfig('nivel_ouro_pontos')||2000)?'ouro':t>=(await getConfig('nivel_prata_pontos')||500)?'prata':'bronze';await pool.query('UPDATE pontos_cashback SET nivel=$1 WHERE telefone=$2',[nv,tel])}await enviarWA(tel,`⭐ Você ganhou *${pts} pontos* neste pedido! Acumule e troque por descontos. 🎉`)}catch(e){}}
+app.get('/api/pontos',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM pontos_cashback ORDER BY pontos DESC LIMIT 100')).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.get('/api/pontos/:telefone',async(req,res)=>{try{const r=await pool.query('SELECT * FROM pontos_cashback WHERE telefone=$1',[req.params.telefone]);res.json(r.rows[0]||{pontos:0,nivel:'bronze',total_gasto:0})}catch(e){res.status(500).json({error:e.message})}});
+
+// ===== CLIENTES ESPECIAIS (antes VIP) =====
+app.get('/api/clientes-vip',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM clientes_vip ORDER BY criado_em DESC')).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.get('/api/clientes-vip/:telefone',async(req,res)=>{try{const r=await pool.query('SELECT * FROM clientes_vip WHERE telefone=$1',[req.params.telefone]);res.json({vip:r.rows.length>0,dados:r.rows[0]||null})}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/clientes-vip',async(req,res)=>{const{telefone,nome,observacao}=req.body;try{await pool.query('INSERT INTO clientes_vip(telefone,nome,observacao,criado_em)VALUES($1,$2,$3,NOW())ON CONFLICT(telefone)DO UPDATE SET nome=$2,observacao=$3',[telefone,nome,observacao]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/clientes-vip/:telefone',async(req,res)=>{try{await pool.query('DELETE FROM clientes_vip WHERE telefone=$1',[req.params.telefone]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
 // ===== BLOQUEADOS =====
-async function carregarBloq(){try{const l=await api('/api/numeros-bloqueados');const c=document.getElementById('lista-bloq');c.innerHTML=(l||[]).length?(l||[]).map(b=>`<div class="ir"><div class="in"><div class="inm">🚫 ${b.nome||'—'}</div><div class="ins">📱 ${b.telefone}${b.motivo?' · '+b.motivo:''}</div></div><button class="btn bv" style="font-size:10px;padding:3px 7px" onclick="delBloq('${b.telefone}')">Desbloquear</button></div>`).join(''):'<div class="es"><p>Nenhum número bloqueado.</p></div>'}catch(e){}}
-async function addBloq(){const t=document.getElementById('bl-t').value.trim(),n=document.getElementById('bl-n').value.trim(),m=document.getElementById('bl-m').value.trim();if(!t||!n)return nt('Preencha telefone e nome',true);await api('/api/numeros-bloqueados',{method:'POST',body:JSON.stringify({telefone:t,nome:n,motivo:m})});['bl-t','bl-n','bl-m'].forEach(x=>document.getElementById(x).value='');nt('✅ Bloqueado!');carregarBloq()}
-async function delBloq(t){if(!confirm('Desbloquear?'))return;await api(`/api/numeros-bloqueados/${t}`,{method:'DELETE'});nt('Desbloqueado.');carregarBloq()}
+app.get('/api/numeros-bloqueados',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM numeros_bloqueados ORDER BY criado_em DESC')).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/numeros-bloqueados',async(req,res)=>{const{telefone,nome,motivo}=req.body;try{await pool.query('INSERT INTO numeros_bloqueados(telefone,nome,motivo,criado_em)VALUES($1,$2,$3,NOW())ON CONFLICT(telefone)DO UPDATE SET nome=$2,motivo=$3',[telefone,nome,motivo]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/numeros-bloqueados/:telefone',async(req,res)=>{try{await pool.query('DELETE FROM numeros_bloqueados WHERE telefone=$1',[req.params.telefone]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
-// ===== MAPA =====
-function initMapa(){if(mapaInst)return carregarZonas();mapaInst=L.map('mapa-entrega').setView([-23.5505,-51.4332],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(mapaInst);L.marker([-23.5505,-51.4332]).addTo(mapaInst).bindPopup('🏪 Padaria Godoy').openPopup();mapaInst.on('click',e=>{document.getElementById('zo-lat').value=e.latlng.lat.toFixed(6);document.getElementById('zo-lng').value=e.latlng.lng.toFixed(6);document.getElementById('zo-nom').value='';document.getElementById('zo-raio').value='';document.getElementById('mo-zona').classList.add('on')});carregarZonas()}
-
-async function carregarZonas(){
-  try{
-    const z=await api('/api/zonas-entrega');
-    mapaInst.eachLayer(l=>{if(l instanceof L.Circle||l instanceof L.CircleMarker)mapaInst.removeLayer(l)});
-    (z||[]).forEach(zona=>{
-      const circ=L.circle([zona.lat,zona.lng],{
-        radius:zona.raio_km*1000,color:zona.cor||'#2d6a4f',fillColor:zona.cor||'#2d6a4f',fillOpacity:.15,weight:2
-      }).addTo(mapaInst);
-      // Popup com edição inline
-      circ.bindPopup(`
-        <b>${zona.nome}</b><br>
-        ${zona.tipo==='entrega'?'✅ Área de entrega':'🚫 Sem entrega'}<br>
-        <div style="margin-top:5px">
-          <label style="font-size:11px">Raio (km):</label><br>
-          <input id="edit-raio-${zona.id}" type="number" value="${zona.raio_km}" step="0.5" style="width:70px;padding:3px;margin:3px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
-          <button onclick="salvarRaio(${zona.id})" style="display:block;width:100%;margin-top:4px;font-size:11px;background:#2d6a4f;color:#fff;border:none;padding:3px 8px;border-radius:5px;cursor:pointer">✓ Salvar Raio</button>
-          <button onclick="delZona(${zona.id})" style="display:block;width:100%;margin-top:3px;font-size:11px;background:#c1392b;color:#fff;border:none;padding:3px 8px;border-radius:5px;cursor:pointer">🗑️ Remover</button>
-        </div>`);
-    });
-  }catch(e){}
-}
-
-async function salvarRaio(id){
-  const raio=parseFloat(document.getElementById(`edit-raio-${id}`)?.value);
-  if(!raio)return;
-  try{await api(`/api/zonas-entrega/${id}`,{method:'PATCH',body:JSON.stringify({raio_km:raio})});nt('✅ Raio atualizado!');mapaInst.closePopup();carregarZonas()}catch(e){nt('Erro',true)}
-}
-window.salvarRaio=salvarRaio;
-function abrirZona(){document.getElementById('mo-zona').classList.add('on')}
-async function saveZona(){const d={nome:document.getElementById('zo-nom').value,tipo:document.getElementById('zo-tipo').value,lat:parseFloat(document.getElementById('zo-lat').value),lng:parseFloat(document.getElementById('zo-lng').value),raio_km:parseFloat(document.getElementById('zo-raio').value),cor:document.getElementById('zo-cor').value};if(!d.nome||!d.lat||!d.lng||!d.raio_km)return nt('Preencha todos os campos',true);try{await api('/api/zonas-entrega',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Zona adicionada!');carregarZonas()}catch(e){nt('Erro',true)}}
-async function delZona(id){if(!confirm('Remover zona?'))return;try{await api(`/api/zonas-entrega/${id}`,{method:'DELETE'});nt('Removida.');carregarZonas()}catch(e){nt('Erro',true)}}
-window.delZona=delZona;
+// ===== ZONAS =====
+app.get('/api/zonas-entrega',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM zonas_entrega WHERE ativo=TRUE ORDER BY criado_em')).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/zonas-entrega',async(req,res)=>{const{nome,tipo,lat,lng,raio_km,cor}=req.body;try{const r=await pool.query('INSERT INTO zonas_entrega(nome,tipo,lat,lng,raio_km,cor)VALUES($1,$2,$3,$4,$5,$6)RETURNING *',[nome,tipo,lat,lng,raio_km,cor||'#2d6a4f']);res.json({success:true,zona:r.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.patch('/api/zonas-entrega/:id', async (req, res) => {
+  const {nome,tipo,lat,lng,raio_km,cor,ativo}=req.body;
+  try {
+    const f=[]; const v=[]; let i=1;
+    if(nome!==undefined){f.push(`nome=$${i++}`);v.push(nome)}
+    if(tipo!==undefined){f.push(`tipo=$${i++}`);v.push(tipo)}
+    if(lat!==undefined){f.push(`lat=$${i++}`);v.push(lat)}
+    if(lng!==undefined){f.push(`lng=$${i++}`);v.push(lng)}
+    if(raio_km!==undefined){f.push(`raio_km=$${i++}`);v.push(raio_km)}
+    if(cor!==undefined){f.push(`cor=$${i++}`);v.push(cor)}
+    if(ativo!==undefined){f.push(`ativo=$${i++}`);v.push(ativo)}
+    if(!f.length) return res.json({success:true});
+    v.push(req.params.id);
+    await pool.query(`UPDATE zonas_entrega SET ${f.join(',')} WHERE id=$${i}`,v);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+app.delete('/api/zonas-entrega/:id',async(req,res)=>{try{await pool.query('UPDATE zonas_entrega SET ativo=FALSE WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
 // ===== FAIXAS =====
-async function carregarFaixas(){try{const l=await api('/api/faixas-entrega');document.getElementById('lista-faixas').innerHTML=(l||[]).length?(l||[]).map(f=>`<div class="fr-row" style="background:var(--cr);border-radius:7px;padding:6px 9px;margin-bottom:4px"><div style="font-size:11px;font-weight:500">${f.km_min}km</div><div style="font-size:11px;font-weight:500">${f.km_max}km</div><div style="font-size:12px;color:var(--v);font-weight:600">R$ ${Number(f.preco).toFixed(2)}</div><div style="font-size:10px;color:var(--g)">${f.descricao||'—'}</div><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delFaixa(${f.id})">✕</button></div>`).join(''):'<p style="font-size:11px;color:var(--g);margin-bottom:8px">Nenhuma faixa.</p>'}catch(e){}}
-async function addFaixa(){const m=document.getElementById('f-min').value,x=document.getElementById('f-max').value,p=document.getElementById('f-preco').value,d=document.getElementById('f-desc').value;if(!m||!x||!p)return nt('Preencha km e preço',true);await api('/api/faixas-entrega',{method:'POST',body:JSON.stringify({km_min:m,km_max:x,preco:p,descricao:d})});['f-min','f-max','f-preco','f-desc'].forEach(i=>document.getElementById(i).value='');nt('✅');carregarFaixas()}
-async function delFaixa(id){if(!confirm('Remover?'))return;await api(`/api/faixas-entrega/${id}`,{method:'DELETE'});nt('Removida.');carregarFaixas()}
+app.get('/api/faixas-entrega',async(req,res)=>{try{res.json((await pool.query('SELECT * FROM faixas_entrega WHERE ativo=true ORDER BY km_min')).rows)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/faixas-entrega',async(req,res)=>{const{km_min,km_max,preco,descricao}=req.body;try{await pool.query('INSERT INTO faixas_entrega(km_min,km_max,preco,descricao)VALUES($1,$2,$3,$4)',[km_min,km_max,preco,descricao]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/faixas-entrega/:id',async(req,res)=>{try{await pool.query('UPDATE faixas_entrega SET ativo=false WHERE id=$1',[req.params.id]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
-// ===== CONFIGS =====
-async function uploadLogo(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=async e=>{const b64=e.target.result.split(',')[1];const tp=f.type;try{const res=await api('/api/configuracoes/logo',{method:'POST',body:JSON.stringify({imagem_base64:b64,tipo:tp})});if(res?.success){const prev=document.getElementById('logo-prev');prev.src=res.url;prev.style.display='block';document.getElementById('logo-drop-txt').style.display='none';carregarLogo();nt('✅ Logo atualizada!')}}catch(e){nt('Erro',true)}};r.readAsDataURL(f)}
-async function carregarCfg(){try{const c=await api('/api/configuracoes');if(!c)return;Object.entries(c).forEach(([k,v])=>{const el=document.getElementById('cfg-'+k);if(el)el.value=v})}catch(e){}}
-async function salvarCfg(){const d={};document.querySelectorAll('[id^="cfg-"]').forEach(el=>d[el.id.replace('cfg-','')]=el.value);try{await api('/api/configuracoes',{method:'POST',body:JSON.stringify(d)});nt('✅ Configurações salvas!');carregarLogo()}catch(e){nt('Erro',true)}}
+// ===== CONFIGURAÇÕES (simplificadas) =====
+app.get('/api/configuracoes',async(req,res)=>{try{const r=await pool.query('SELECT chave,valor FROM configuracoes ORDER BY chave');const c={};r.rows.forEach(x=>c[x.chave]=x.valor);res.json(c)}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/configuracoes',async(req,res)=>{try{for(const[k,v]of Object.entries(req.body)){await pool.query('INSERT INTO configuracoes(chave,valor)VALUES($1,$2)ON CONFLICT(chave)DO UPDATE SET valor=$2',[k,String(v)])}res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
 
-// ===== AUSÊNCIA =====
-async function carregarAus(){try{const d=await api('/api/ausencia');if(!d)return;ausAtivo=d.ativo||false;document.getElementById('aus-msg').value=d.mensagem||'';atualizarAus()}catch(e){}}
-function atualizarAus(){const t=document.getElementById('aus-tgl'),l=document.getElementById('aus-lbl'),s=document.getElementById('aus-st');if(ausAtivo){t.classList.add('on');l.textContent='ATIVADO';l.style.color='var(--r)';s.textContent='Clientes recebem mensagem de ausência'}else{t.classList.remove('on');l.textContent='Desativado';l.style.color='';s.textContent='Atendimento automático ativo'}}
-function toggleAus(){ausAtivo=!ausAtivo;atualizarAus()}
-async function salvarAus(){const m=document.getElementById('aus-msg').value;await api('/api/ausencia',{method:'POST',body:JSON.stringify({ativo:ausAtivo,mensagem:m})});nt(ausAtivo?'💤 Ausência ativada!':'✅ Atendimento reativado!')}
-</script>
-</body>
-</html>
+// Upload logo como base64
+app.post('/api/configuracoes/logo', async (req, res) => {
+  const { imagem_base64, tipo } = req.body;
+  try {
+    const url = `data:${tipo||'image/png'};base64,${imagem_base64}`;
+    await pool.query("INSERT INTO configuracoes(chave,valor)VALUES('logo_base64',$1)ON CONFLICT(chave)DO UPDATE SET valor=$1",[url]);
+    res.json({ success: true, url });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.get('/api/ausencia',async(req,res)=>{try{const r=await pool.query("SELECT valor FROM configuracoes WHERE chave='modo_ausencia' LIMIT 1");res.json(r.rows.length?JSON.parse(r.rows[0].valor):{ativo:false,mensagem:''})}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/ausencia',async(req,res)=>{const{ativo,mensagem}=req.body;try{await pool.query("INSERT INTO configuracoes(chave,valor)VALUES('modo_ausencia',$1)ON CONFLICT(chave)DO UPDATE SET valor=$1",[JSON.stringify({ativo,mensagem})]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+
+// ===== RELATÓRIOS =====
+app.get('/api/relatorios/vendas',async(req,res)=>{const{periodo}=req.query;const dias=parseInt(periodo)||30;try{const pd=await pool.query(`SELECT DATE(criado_em AT TIME ZONE 'America/Sao_Paulo')as dia,COUNT(*)as pedidos,COALESCE(SUM(valor_total),0)as receita FROM pedidos WHERE status NOT IN('cancelado')AND arquivado=FALSE AND criado_em>=NOW()-INTERVAL '${dias} days' GROUP BY dia ORDER BY dia`);const ps=await pool.query(`SELECT status,COUNT(*)as total FROM pedidos WHERE criado_em>=NOW()-INTERVAL '${dias} days' AND arquivado=FALSE GROUP BY status`);const pp=await pool.query(`SELECT forma_pagamento,COUNT(*)as total,COALESCE(SUM(valor_total),0)as receita FROM pedidos WHERE status IN('confirmado','em_producao','pronto','entregue')AND criado_em>=NOW()-INTERVAL '${dias} days' AND arquivado=FALSE GROUP BY forma_pagamento`);const tt=await pool.query(`SELECT COUNT(*)as total_pedidos,COALESCE(SUM(valor_total),0)as receita_total,COALESCE(AVG(valor_total),0)as ticket_medio FROM pedidos WHERE status NOT IN('cancelado')AND arquivado=FALSE AND criado_em>=NOW()-INTERVAL '${dias} days'`);res.json({porDia:pd.rows,porStatus:ps.rows,porPgto:pp.rows,totais:tt.rows[0]})}catch(e){res.status(500).json({error:e.message})}});
+app.get('/api/relatorios/produtos',async(req,res)=>{try{const mv=await pool.query('SELECT nome,categoria,total_vendas,preco FROM produtos WHERE total_vendas>0 ORDER BY total_vendas DESC LIMIT 20');const pc=await pool.query('SELECT categoria,COUNT(*)as qtd_produtos,SUM(total_vendas)as total_vendas FROM produtos GROUP BY categoria ORDER BY total_vendas DESC');res.json({maisVendidos:mv.rows,porCategoria:pc.rows})}catch(e){res.status(500).json({error:e.message})}});
+app.get('/api/relatorios/entregas',async(req,res)=>{try{const en=await pool.query(`SELECT endereco,COUNT(*)as total FROM pedidos WHERE tipo='entrega' AND endereco IS NOT NULL AND arquivado=FALSE GROUP BY endereco ORDER BY total DESC LIMIT 30`);const pt=await pool.query('SELECT tipo,COUNT(*)as total FROM pedidos WHERE arquivado=FALSE GROUP BY tipo');const ets=await pool.query('SELECT nome,telefone,total_entregas FROM entregadores ORDER BY total_entregas DESC');res.json({enderecos:en.rows,porTipo:pt.rows,entregadores:ets.rows})}catch(e){res.status(500).json({error:e.message})}});
+
+// ===== FRETE =====
+app.post('/api/calcular-frete',async(req,res)=>{const{endereco_cliente}=req.body;try{const g=await(await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(endereco_cliente+', Apucarana, PR, Brasil')}&format=json&limit=1`,{headers:{'User-Agent':'GodoyPadaria/1.0'}})).json();if(!g?.length)return res.json({erro:'Endereço não encontrado',taxa:null});const{lat,lon}=g[0];const o=await(await fetch(`https://router.project-osrm.org/route/v1/driving/-51.4332,-23.5505;${lon},${lat}?overview=false`)).json();if(o.code!=='Ok')return res.json({erro:'Erro na rota',taxa:null});const km=o.routes[0].distance/1000;const f=(await pool.query('SELECT * FROM faixas_entrega WHERE ativo=true AND km_min<=$1 AND km_max>$1 ORDER BY km_min LIMIT 1',[km])).rows[0];res.json({distanciaKm:km.toFixed(1),taxa:f?.preco||null,faixa:f||null})}catch(e){res.status(500).json({error:e.message})}});
+
+// ===== VERIFICAÇÃO =====
+app.post('/api/verificacao',async(req,res)=>{const{telefone,produto}=req.body;try{await pool.query("INSERT INTO estado_pedido(telefone,etapa,itens,criado_em,atualizado_em)VALUES($1,'aguardando_verificacao',$2,NOW(),NOW())ON CONFLICT(telefone)DO UPDATE SET etapa='aguardando_verificacao',itens=$2,atualizado_em=NOW()",[telefone,produto]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.delete('/api/verificacao/:telefone',async(req,res)=>{try{await pool.query("UPDATE estado_pedido SET etapa='idle',atualizado_em=NOW() WHERE telefone=$1",[req.params.telefone]);res.json({success:true})}catch(e){res.status(500).json({error:e.message})}});
+app.post('/api/repasse',async(req,res)=>{try{const r=await pool.query("SELECT telefone FROM estado_pedido WHERE etapa='aguardando_verificacao' ORDER BY atualizado_em DESC LIMIT 1");res.json(r.rows[0]||null)}catch(e){res.status(500).json({error:e.message})}});
+
+// ===== PORTAL PÚBLICO =====
+app.get('/api/portal/cardapio',async(req,res)=>{
+  try{
+    const cats=(await pool.query('SELECT * FROM categorias WHERE disponivel=true ORDER BY ordem,nome')).rows;
+    for(const c of cats){
+      c.produtos=(await pool.query('SELECT id,nome,descricao,preco,unidade,imagem_url,tipo_pedido,permite_delivery,permite_retirada,permite_salao,destaque FROM produtos WHERE disponivel=true AND(categoria=$1 OR categoria_id=$2)ORDER BY destaque DESC,ordem,nome',[c.nome,c.id])).rows;
+      for(const p of c.produtos) p.complementos=(await pool.query('SELECT g.*,(SELECT json_agg(i.*)FROM complementos_itens i WHERE i.grupo_id=g.id AND i.disponivel=true)as itens FROM complementos_grupos g WHERE g.produto_id=$1 ORDER BY g.ordem',[p.id])).rows;
+    }
+    const combos=(await pool.query('SELECT * FROM combos WHERE disponivel=true ORDER BY destaque DESC,ordem,nome')).rows;
+    for(const c of combos) c.itens=(await pool.query(`SELECT ci.*,p.nome as produto_nome,p.preco as produto_preco FROM combo_itens ci JOIN produtos p ON ci.produto_id=p.id WHERE ci.combo_id=$1`,[c.id])).rows;
+    const cfg=(await pool.query("SELECT chave,valor FROM configuracoes WHERE chave IN('endereco_padaria','horario_loja','whatsapp_negocio','chave_pix','logo_base64','logo_nome','cashback_ativo','pontos_por_real')")).rows;
+    const config={};cfg.forEach(c=>config[c.chave]=c.valor);
+    const mv=(await pool.query('SELECT * FROM produtos WHERE disponivel=true AND total_vendas>0 ORDER BY total_vendas DESC LIMIT 6')).rows;
+    res.json({categorias:cats,combos,configuracoes:config,maisVendidos:mv});
+  }catch(e){res.status(500).json({error:e.message})}
+});
+
+app.post('/api/portal/pedido',async(req,res)=>{
+  const{nome_cliente,telefone,email,itens,observacoes,tipo,endereco,forma_pagamento,valor_total}=req.body;
+  try{
+    const r=await pool.query('INSERT INTO pedidos(telefone,nome_cliente,itens,observacoes,tipo,endereco,forma_pagamento,valor_total,status,criado_em)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())RETURNING id',[telefone,nome_cliente,typeof itens==='string'?itens:itens.map(i=>`${i.qtd}x ${i.nome}`).join(', '),observacoes,tipo||'retirada',endereco,forma_pagamento,valor_total,'aguardando_pagamento']);
+    const pid=r.rows[0].id;
+    const dono=await getConfig('whatsapp_negocio')||'5543991397163';
+    // Envia resumo formatado ao cliente
+    const pedCriado=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[pid])).rows[0];
+    if(pedCriado) await enviarResumodoPedido(pedCriado);
+    // Notifica dono
+    await enviarWA(dono,`🔔 *NOVO PEDIDO PORTAL #${pid}*\n👤 ${nome_cliente} | 📱 ${telefone}\n💰 R$ ${Number(valor_total).toFixed(2)}\n\nhttps://sublime-insight-production.up.railway.app`);
+    res.json({success:true,pedidoId:pid});
+  }catch(e){res.status(500).json({error:e.message})}
+});
+
+const PORT=process.env.PORT||3000;
+app.listen(PORT,()=>console.log(`Godoy na porta ${PORT}`));
