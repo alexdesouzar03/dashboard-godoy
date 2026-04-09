@@ -119,6 +119,17 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
 .canais{display:flex;gap:4px;flex-wrap:wrap}
 .canal{padding:4px 9px;border-radius:100px;border:1.5px solid rgba(61,31,10,.15);background:transparent;font-size:10px;cursor:pointer;font-weight:500;color:var(--g);transition:all .2s}
 .canal.on{border-color:var(--c);background:var(--c);color:#fff}
+/* CARDÁPIO UNIFICADO */
+.cat-secao{margin-bottom:14px;border:1px solid rgba(61,31,10,.09);border-radius:11px;overflow:hidden}
+.cat-secao-header{background:rgba(61,31,10,.04);padding:10px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .2s;user-select:none}
+.cat-secao-header:hover{background:rgba(61,31,10,.08)}
+.cat-secao-titulo{font-family:'Playfair Display',serif;font-size:14px;color:var(--m);display:flex;align-items:center;gap:7px}
+.cat-secao-info{font-size:10px;color:var(--g);display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.cat-secao-body{padding:10px;display:none}
+.cat-secao-body.aberto{display:block}
+.cat-chevron{font-size:11px;transition:transform .2s;color:var(--g)}
+.cat-chevron.aberto{transform:rotate(180deg)}
+.sem-prods{text-align:center;padding:16px;color:var(--g);font-size:11px}
 #mapa-entrega{width:100%;height:350px;border-radius:9px;z-index:1}
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
 .mo.on{display:flex}
@@ -192,6 +203,7 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
   <div class="hr">
     <div class="dh" id="relogio"></div>
     <div class="usuario-info">👤 <span id="usuario-nome"></span></div>
+    <a href="/portal" target="_blank" class="btn bout" style="font-size:10px">🌐 Portal</a>
     <button class="btn bout" style="font-size:10px" onclick="alterarSenha()">🔑</button>
     <button class="btn br" style="font-size:10px" onclick="sair()">Sair</button>
   </div>
@@ -201,7 +213,6 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
   <button class="tb on" onclick="mudarTab('pedidos',this)">📋 Pedidos</button>
   <button class="tb" onclick="mudarTab('cardapio',this)">🍞 Cardápio</button>
   <button class="tb" onclick="mudarTab('combos',this)">🎁 Combos</button>
-  <button class="tb" onclick="mudarTab('categorias',this)">📂 Categorias</button>
   <button class="tb" onclick="mudarTab('entregadores',this)">🛵 Entregadores</button>
   <button class="tb" onclick="mudarTab('pontos',this)">⭐ Pontos</button>
   <button class="tb" onclick="mudarTab('relatorios',this)">📊 Relatórios</button>
@@ -225,37 +236,23 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
   <div class="kw"><div class="kb" id="kb"></div></div>
 </div>
 
-<!-- CARDÁPIO -->
+<!-- CARDÁPIO UNIFICADO -->
 <div id="tab-cardapio" class="tc">
   <div class="gc">
     <div class="gcard">
-      <div class="gtt">🍞 Produtos <button class="btn bc" onclick="abrirProduto()">+ Novo</button></div>
-      <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap" id="filt-cat"></div>
-      <div class="pg" id="lista-prods"></div>
+      <div class="gtt">🍞 Cardápio
+        <div style="display:flex;gap:6px">
+          <button class="btn bc" onclick="abrirCategoria()">+ Categoria</button>
+          <button class="btn bout" onclick="abrirProduto()">+ Produto</button>
+        </div>
+      </div>
+      <div id="cardapio-unificado"></div>
     </div>
   </div>
 </div>
 
-<!-- COMBOS -->
-<div id="tab-combos" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">🎁 Combos <button class="btn bc" onclick="abrirCombo()">+ Novo Combo</button></div>
-      <div class="gdesc">Monte combos com produtos do cardápio com preço especial.</div>
-      <div class="pg" id="lista-combos"></div>
-    </div>
-  </div>
-</div>
-
-<!-- CATEGORIAS -->
-<div id="tab-categorias" class="tc">
-  <div class="gc">
-    <div class="gcard">
-      <div class="gtt">📂 Categorias <button class="btn bc" onclick="abrirCategoria()">+ Nova</button></div>
-      <div class="li" id="lista-cats"></div>
-    </div>
-  </div>
-</div>
+<!-- CATEGORIAS (oculta — mantida para compatibilidade) -->
+<div id="tab-categorias" class="tc"></div>
 
 <!-- ENTREGADORES -->
 <div id="tab-entregadores" class="tc">
@@ -346,13 +343,14 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
       <div id="mapa-entrega"></div>
     </div>
     <div class="gcard">
-      <div class="gtt">💰 Faixas de Preço por Distância</div>
+      <div class="gtt">💰 Faixas de Preço por Raio</div>
+      <div class="ib">Cada faixa representa um raio a partir da padaria. Ex: Raio até 3km → R$ 5,00. Raio de 3 a 6km → R$ 8,00.</div>
       <div id="lista-faixas"></div>
       <div class="fr-row">
-        <div class="fg"><label>Km min</label><input type="number" id="f-min"></div>
-        <div class="fg"><label>Km max</label><input type="number" id="f-max"></div>
-        <div class="fg"><label>Preço R$</label><input type="number" id="f-preco"></div>
-        <div class="fg"><label>Descrição</label><input id="f-desc"></div>
+        <div class="fg"><label>Raio de (km)</label><input type="number" id="f-min" placeholder="0"></div>
+        <div class="fg"><label>Raio até (km)</label><input type="number" id="f-max" placeholder="3"></div>
+        <div class="fg"><label>Taxa R$</label><input type="number" id="f-preco" placeholder="5.00"></div>
+        <div class="fg"><label>Descrição</label><input id="f-desc" placeholder="Ex: Até 3km"></div>
         <button class="btn bc" onclick="addFaixa()" style="margin-top:16px">+</button>
       </div>
     </div>
@@ -647,7 +645,130 @@ document.getElementById('lg-senha').addEventListener('keydown', e => { if(e.key=
 function tocarSom(f=[880,660,880]){try{const c=new(window.AudioContext||window.webkitAudioContext)();f.forEach((fr,i)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=fr;g.gain.setValueAtTime(.22,c.currentTime+i*.15);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+i*.15+.4);o.start(c.currentTime+i*.15);o.stop(c.currentTime+i*.15+.4)})}catch(e){}}
 function relogio(){const a=new Date();document.getElementById('relogio').textContent=a.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})+' '+a.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
 setInterval(relogio,1000);relogio();
-function mudarTab(n,b){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.tc').forEach(x=>x.classList.remove('on'));if(b)b.classList.add('on');document.getElementById('tab-'+n).classList.add('on');if(n==='cardapio')carregarProds();if(n==='combos')carregarCombos();if(n==='categorias')carregarCats();if(n==='entregadores')carregarEnts();if(n==='pontos')carregarPontos();if(n==='relatorios')carregarRel(30);if(n==='clientes-especiais')carregarVip();if(n==='bloqueados')carregarBloq();if(n==='entrega'){carregarFaixas();initMapa();}if(n==='configuracoes')carregarCfg();if(n==='ausencia')carregarAus()}
+function mudarTab(n,b){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.tc').forEach(x=>x.classList.remove('on'));if(b)b.classList.add('on');document.getElementById('tab-'+n).classList.add('on');if(n==='cardapio')carregarCardapioUnificado();if(n==='combos')carregarCombos();if(n==='entregadores')carregarEnts();if(n==='pontos')carregarPontos();if(n==='relatorios')carregarRel(30);if(n==='clientes-especiais')carregarVip();if(n==='bloqueados')carregarBloq();if(n==='entrega'){carregarFaixas();initMapa();}if(n==='configuracoes')carregarCfg();if(n==='ausencia')carregarAus()}
+
+// ===== CARDÁPIO UNIFICADO =====
+async function carregarCardapioUnificado() {
+  try {
+    const [cats, produtos] = await Promise.all([api('/api/categorias'), api('/api/produtos')]);
+    const container = document.getElementById('cardapio-unificado');
+
+    // Popula select de categoria no modal de produto
+    const sel = document.getElementById('pp-cat');
+    sel.innerHTML = '<option value="">Selecione...</option>' + (cats||[]).map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+
+    // Agrupa produtos por categoria_id
+    const prodsPorCat = {};
+    (produtos||[]).forEach(p => {
+      const cid = p.categoria_id || 'sem_cat';
+      if (!prodsPorCat[cid]) prodsPorCat[cid] = [];
+      prodsPorCat[cid].push(p);
+    });
+
+    // Produtos sem categoria
+    const semCat = prodsPorCat['sem_cat'] || [];
+
+    let html = (cats||[]).map(cat => {
+      const prods = prodsPorCat[cat.id] || [];
+      const dias = (cat.dias_semana || [0,1,2,3,4,5,6]).map(d => ['D','S','T','Q','Q','S','S'][d]).join('');
+      const canais = [cat.permite_delivery?'🛵':'',cat.permite_retirada?'🏪':'',cat.permite_salao?'🍽️':''].filter(Boolean).join(' ');
+      const status = cat.disponivel
+        ? '<span style="font-size:9px;padding:1px 6px;background:#d1e7dd;color:#0a3622;border-radius:100px">Aberta</span>'
+        : '<span style="font-size:9px;padding:1px 6px;background:#f8d7da;color:#842029;border-radius:100px">Fechada</span>';
+
+      return `<div class="cat-secao">
+        <div class="cat-secao-header" onclick="toggleCatSecao(${cat.id})">
+          <div>
+            <div class="cat-secao-titulo">
+              ${status} ${cat.nome}
+              <span style="font-size:10px;color:var(--g);font-family:'DM Sans',sans-serif;font-weight:400">(${prods.length} produto${prods.length!==1?'s':''})</span>
+            </div>
+            <div class="cat-secao-info">
+              <span>${canais}</span>
+              <span>⏰ ${cat.horario_inicio?.slice(0,5)||'06:00'}–${cat.horario_fim?.slice(0,5)||'20:00'}</span>
+              <span>📅 ${dias}</span>
+              ${cat.descricao?`<span style="color:var(--cinza)">— ${cat.descricao}</span>`:''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div onclick="event.stopPropagation();tgCat(${cat.id},${!cat.disponivel})" class="tmini"><div class="tm ${cat.disponivel?'on':''}"></div></div>
+            <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();editCat(${cat.id})">✏️</button>
+            <button class="btn bc" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();abrirProdutoCat(${cat.id},'${cat.nome.replace(/'/g,"\\'")}')">+ Produto</button>
+            <span class="cat-chevron" id="chev-${cat.id}">▼</span>
+          </div>
+        </div>
+        <div class="cat-secao-body" id="body-${cat.id}">
+          ${prods.length
+            ? `<div class="pg">${prods.map(p => renderProdCard(p, cat)).join('')}</div>`
+            : `<div class="sem-prods">Nenhum produto nesta categoria. <button class="btn bc" style="font-size:10px;padding:3px 8px;margin-left:6px" onclick="abrirProdutoCat(${cat.id},'${cat.nome.replace(/'/g,"\\'")}')">+ Adicionar</button></div>`
+          }
+        </div>
+      </div>`;
+    }).join('');
+
+    // Produtos sem categoria no final
+    if (semCat.length) {
+      html += `<div class="cat-secao">
+        <div class="cat-secao-header" onclick="toggleCatSecao('sc')">
+          <div class="cat-secao-titulo">📦 Sem categoria (${semCat.length})</div>
+          <span class="cat-chevron" id="chev-sc">▼</span>
+        </div>
+        <div class="cat-secao-body" id="body-sc">
+          <div class="pg">${semCat.map(p => renderProdCard(p, null)).join('')}</div>
+        </div>
+      </div>`;
+    }
+
+    container.innerHTML = html || '<div class="sem-prods">Nenhuma categoria cadastrada ainda.</div>';
+  } catch(e) { console.error(e); }
+}
+
+function toggleCatSecao(id) {
+  const body = document.getElementById('body-' + id);
+  const chev = document.getElementById('chev-' + id);
+  if (!body) return;
+  body.classList.toggle('aberto');
+  if (chev) chev.classList.toggle('aberto');
+}
+
+function abrirProdutoCat(catId, catNome) {
+  abrirProduto();
+  setTimeout(() => {
+    const sel = document.getElementById('pp-cat');
+    if (sel) sel.value = catId;
+  }, 50);
+}
+
+function renderProdCard(p, cat) {
+  // Aplica restrição da categoria
+  const delOk = p.permite_delivery && (cat ? cat.permite_delivery : true);
+  const retOk = p.permite_retirada && (cat ? cat.permite_retirada : true);
+  const salOk = p.permite_salao && (cat ? cat.permite_salao : false);
+
+  return `<div class="pc ${!p.disponivel?'off':''}">
+    <div class="pim">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}" loading="lazy">`:'🍞'}</div>
+    <div class="pb">
+      <div class="pnom">${p.destaque?'⭐ ':''}${p.nome}</div>
+      ${p.descricao?`<div class="pdsc">${p.descricao}</div>`:''}
+      <div class="ppr">R$ ${Number(p.preco).toFixed(2)} <span class="pun">/ ${p.unidade}</span></div>
+      <div class="ptags">
+        <span class="ptag">${p.tipo_pedido==='agendamento'?'📅':p.tipo_pedido==='hora'?'⚡':'📅⚡'}</span>
+        ${delOk?'<span class="ptag on">🛵</span>':'<span class="ptag" style="background:#f8d7da;color:#842029">🚫🛵</span>'}
+        ${retOk?'<span class="ptag on">🏪</span>':''}
+        ${salOk?'<span class="ptag on">🍽️</span>':''}
+        ${p.total_vendas>0?`<span class="ptag">🔥${p.total_vendas}</span>`:''}
+      </div>
+    </div>
+    <div class="pft">
+      <div class="tmini" onclick="tgProd(${p.id},${!p.disponivel})"><div class="tm ${p.disponivel?'on':''}"></div><span>${p.disponivel?'Disp.':'Indisp.'}</span></div>
+      <div style="display:flex;gap:3px">
+        <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editProd(${p.id})">✏️</button>
+        <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="abrirComp(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🧩</button>
+        <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delProd(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
 function nt(m,e=false){const el=document.getElementById('notif');el.textContent=m;el.style.background=e?'#c1392b':'#2d6a4f';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3500)}
 function fMo(){document.querySelectorAll('.mo').forEach(m=>m.classList.remove('on'))}
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)fMo()}));
@@ -711,9 +832,11 @@ function renderKanban(p){
             ${s==='aguardando_pagamento'?`<button class="kb2" style="background:var(--v);color:#fff" onclick="updSt(${x.id},'confirmado')">✓ Pgto</button><button class="kb2" style="border:1px solid var(--r);color:var(--r)" onclick="cancPed(${x.id})">✕</button>`:''}
             ${s==='confirmado'?`<button class="kb2" style="background:var(--b);color:#fff" onclick="updSt(${x.id},'em_producao')">🔥</button>`:''}
             ${s==='em_producao'?`<button class="kb2" style="background:var(--c);color:#fff" onclick="updSt(${x.id},'pronto')">✓</button>`:''}
-            ${s==='pronto'?`<button class="kb2" style="background:var(--g);color:#fff" onclick="updSt(${x.id},'entregue')">📦</button><button class="kb2" style="background:var(--o);color:#fff" onclick="chamarEntRap(${x.id})">🛵</button>`:''}
+            ${s==='pronto'?`<button class="kb2" style="background:var(--g);color:#fff" onclick="updSt(${x.id},'entregue')">📦 Entregue</button>${x.tipo==='entrega'?`<button class="kb2" style="background:var(--o);color:#fff" title="Chamar entregador" onclick="chamarEntRap(${x.id})">🛵</button>`:''}`:''}
+            ${s==='em_producao'&&x.tipo==='entrega'?`<button class="kb2" style="background:var(--o);color:#fff;opacity:.7" title="Chamar entregador" onclick="chamarEntRap(${x.id})">🛵</button>`:''}
             <button class="kb2 bout" onclick="abrirEditPed(${x.id})" style="margin-left:auto">✏️</button>
             <button class="kb2 bout" onclick="verHist(${x.id})">📋</button>
+            <button class="kb2" style="background:rgba(61,31,10,.08);color:var(--g)" title="${x.tipo_kanban==='agendado'?'Mover para Pedidos do Dia':'Mover para Encomendas'}" onclick="moverKanban(${x.id},'${x.tipo_kanban==='agendado'?'imediato':'agendado'}')">${x.tipo_kanban==='agendado'?'📦→Dia':'📅→Agenda'}</button>
             <button class="kb2" style="border:1px solid var(--r);color:var(--r)" onclick="abrirExcluir(${x.id})">🗑️</button>
           </div>
         </div>`}).join(''):`<div style="text-align:center;padding:14px;font-size:10px;color:var(--g)">Vazio</div>`}
@@ -730,6 +853,13 @@ function abrirExcluir(id){
   document.getElementById('mex-id').textContent=`#${id}`;
   document.getElementById('mex-motivo').value='';
   document.getElementById('mo-excluir').classList.add('on');
+}
+async function moverKanban(id, tipo){
+  try{
+    await api(`/api/pedidos/${id}/tipo-kanban`,{method:'PATCH',body:JSON.stringify({tipo_kanban:tipo})});
+    nt(tipo==='agendado'?'📅 Movido para Encomendas':'📦 Movido para Pedidos do Dia');
+    await carregarKanban();
+  }catch(e){nt('Erro',true)}
 }
 async function confirmarExclusao(){
   const id=document.getElementById('mex-hid').value;
@@ -865,7 +995,7 @@ async function editCombo(id){const cs=await api('/api/combos');const cb=cs?.find
 async function delCombo(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/combos/${id}`,{method:'DELETE'});nt('Removido.');carregarCombos()}catch(e){nt('Erro',true)}}
 
 // ===== PRODUTOS =====
-async function carregarProds(){
+async function carregarCardapioUnificado(){
   try{
     const cats=await api('/api/categorias');
     const f=document.getElementById('filt-cat');
@@ -902,13 +1032,13 @@ async function carregarProds(){
     </div>`).join('');
   }catch(e){console.error(e)}
 }
-function setFP(c){filtroCatProd=c;carregarProds()}
-async function tgProd(id,d){try{await api(`/api/produtos/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'✅':'⛔');carregarProds()}catch(e){nt('Erro',true)}}
+function setFP(c){filtroCatProd=c;carregarCardapioUnificado()}
+async function tgProd(id,d){try{await api(`/api/produtos/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'✅':'⛔');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;document.getElementById('mo-prod').classList.add('on')}
 async function editProd(id){const ps=await api('/api/produtos');const p=ps?.find(x=>x.id===id);if(!p)return;abrirProduto(p);if(p.imagem_url){const img=document.getElementById('pp-prv');img.src=p.imagem_url;img.style.display='block'}}
 function prevImg(inp,previewId){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(previewId);img.src=e.target.result;img.style.display='block';const b64=e.target.result.split(',')[1];const tp=f.type;if(previewId==='pp-prv'){prodImgB64=b64;prodImgTp=tp}else{cbImgB64=b64;cbImgTp=tp}};r.readAsDataURL(f)}
-async function saveProd(){const id=document.getElementById('pp-id').value;const c=document.querySelectorAll('#pp-canais .canal');const cSel=document.getElementById('pp-cat');const d={nome:document.getElementById('pp-nom').value,categoria:cSel.options[cSel.selectedIndex]?.text||'',categoria_id:cSel.value||null,descricao:document.getElementById('pp-dsc').value,preco:document.getElementById('pp-pre').value,unidade:document.getElementById('pp-uni').value,tipo_pedido:document.getElementById('pp-tip').value,permite_delivery:c[0].classList.contains('on'),permite_retirada:c[1].classList.contains('on'),permite_salao:c[2].classList.contains('on'),destaque:document.getElementById('pp-dest').checked};if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);try{let pid=id;if(id)await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify(d)});else{const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(d)});pid=r?.produto?.id}if(prodImgB64&&pid)await api(`/api/produtos/${pid}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:prodImgB64,tipo:prodImgTp})});fMo();nt('✅ Produto salvo!');carregarProds()}catch(e){nt('Erro',true)}}
-async function delProd(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/produtos/${id}`,{method:'DELETE'});nt('Removido.');carregarProds()}catch(e){nt('Erro',true)}}
+async function saveProd(){const id=document.getElementById('pp-id').value;const c=document.querySelectorAll('#pp-canais .canal');const cSel=document.getElementById('pp-cat');const d={nome:document.getElementById('pp-nom').value,categoria:cSel.options[cSel.selectedIndex]?.text||'',categoria_id:cSel.value||null,descricao:document.getElementById('pp-dsc').value,preco:document.getElementById('pp-pre').value,unidade:document.getElementById('pp-uni').value,tipo_pedido:document.getElementById('pp-tip').value,permite_delivery:c[0].classList.contains('on'),permite_retirada:c[1].classList.contains('on'),permite_salao:c[2].classList.contains('on'),destaque:document.getElementById('pp-dest').checked};if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);try{let pid=id;if(id)await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify(d)});else{const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(d)});pid=r?.produto?.id}if(prodImgB64&&pid)await api(`/api/produtos/${pid}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:prodImgB64,tipo:prodImgTp})});fMo();nt('✅ Produto salvo!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function delProd(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/produtos/${id}`,{method:'DELETE'});nt('Removido.');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 
 // ===== COMPLEMENTOS =====
 async function abrirComp(pid,pnom){document.getElementById('mc-pid').value=pid;document.getElementById('mc-pnom').textContent=pnom;await carregarComp();document.getElementById('mo-comp').classList.add('on')}
@@ -919,12 +1049,12 @@ async function delGrupo(id){if(!confirm('Remover grupo?'))return;try{await api(`
 async function delItem(id){try{await api(`/api/complementos/itens/${id}`,{method:'DELETE'});await carregarComp()}catch(e){nt('Erro',true)}}
 
 // ===== CATEGORIAS =====
-async function carregarCats(){try{const c=await api('/api/categorias');const el=document.getElementById('lista-cats');el.innerHTML=(c||[]).length?(c||[]).map(x=>{const dias=(x.dias_semana||[0,1,2,3,4,5,6]).map(d=>DIAS[d]).join(', ');return`<div class="ir" style="flex-wrap:wrap;gap:6px"><div class="in"><div class="inm">${x.disponivel?'🟢':'🔴'} ${x.nome}</div><div class="ins">${x.descricao||'—'} · ${dias} · ${x.horario_inicio?.slice(0,5)||'06:00'}-${x.horario_fim?.slice(0,5)||'20:00'}</div><div style="display:flex;gap:3px;margin-top:3px">${x.permite_delivery?'<span style="font-size:9px;padding:1px 5px;background:#d1e7dd;color:#0a3622;border-radius:100px">🛵</span>':''}${x.permite_retirada?'<span style="font-size:9px;padding:1px 5px;background:#cfe2ff;color:#084298;border-radius:100px">🏪</span>':''}${x.permite_salao?'<span style="font-size:9px;padding:1px 5px;background:#fef3cd;color:#856404;border-radius:100px">🍽️</span>':''}</div></div><div class="ia"><div class="tmini" onclick="tgCat(${x.id},${!x.disponivel})"><div class="tm ${x.disponivel?'on':''}"></div></div><button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editCat(${x.id})">✏️</button><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delCat(${x.id},'${x.nome.replace(/'/g,"\\'")}')">🗑️</button></div></div>`}).join(''):'<div class="es"><p>Nenhuma categoria.</p></div>'}catch(e){}}
-async function tgCat(id,d){try{await api(`/api/categorias/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'🟢':'🔴');carregarCats()}catch(e){nt('Erro',true)}}
+async function carregarCardapioUnificado(){try{const c=await api('/api/categorias');const el=document.getElementById('lista-cats');el.innerHTML=(c||[]).length?(c||[]).map(x=>{const dias=(x.dias_semana||[0,1,2,3,4,5,6]).map(d=>DIAS[d]).join(', ');return`<div class="ir" style="flex-wrap:wrap;gap:6px"><div class="in"><div class="inm">${x.disponivel?'🟢':'🔴'} ${x.nome}</div><div class="ins">${x.descricao||'—'} · ${dias} · ${x.horario_inicio?.slice(0,5)||'06:00'}-${x.horario_fim?.slice(0,5)||'20:00'}</div><div style="display:flex;gap:3px;margin-top:3px">${x.permite_delivery?'<span style="font-size:9px;padding:1px 5px;background:#d1e7dd;color:#0a3622;border-radius:100px">🛵</span>':''}${x.permite_retirada?'<span style="font-size:9px;padding:1px 5px;background:#cfe2ff;color:#084298;border-radius:100px">🏪</span>':''}${x.permite_salao?'<span style="font-size:9px;padding:1px 5px;background:#fef3cd;color:#856404;border-radius:100px">🍽️</span>':''}</div></div><div class="ia"><div class="tmini" onclick="tgCat(${x.id},${!x.disponivel})"><div class="tm ${x.disponivel?'on':''}"></div></div><button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editCat(${x.id})">✏️</button><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delCat(${x.id},'${x.nome.replace(/'/g,"\\'")}')">🗑️</button></div></div>`}).join(''):'<div class="es"><p>Nenhuma categoria.</p></div>'}catch(e){}}
+async function tgCat(id,d){try{await api(`/api/categorias/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'🟢':'🔴');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 function abrirCategoria(c=null){document.getElementById('mct-id').value=c?.id||'';document.getElementById('mct-tt').textContent=c?'✏️ Editar':'📂 Nova Categoria';document.getElementById('mct-nom').value=c?.nome||'';document.getElementById('mct-dsc').value=c?.descricao||'';document.getElementById('mct-hi').value=c?.horario_inicio?.slice(0,5)||'06:00';document.getElementById('mct-hf').value=c?.horario_fim?.slice(0,5)||'20:00';const dias=c?.dias_semana||[0,1,2,3,4,5,6];document.querySelectorAll('#mct-dias .dia').forEach(b=>b.classList.toggle('on',dias.includes(parseInt(b.dataset.d))));const cans=document.querySelectorAll('#mct-canais .canal');cans[0].classList.toggle('on',c?.permite_delivery!==false);cans[1].classList.toggle('on',c?.permite_retirada!==false);cans[2].classList.toggle('on',c?.permite_salao||false);document.getElementById('mo-cat').classList.add('on')}
 async function editCat(id){const c=await api('/api/categorias');const x=c?.find(y=>y.id===id);if(x)abrirCategoria(x)}
-async function saveCat(){const id=document.getElementById('mct-id').value;const dias=[];document.querySelectorAll('#mct-dias .dia.on').forEach(b=>dias.push(parseInt(b.dataset.d)));const cans=document.querySelectorAll('#mct-canais .canal');const d={nome:document.getElementById('mct-nom').value,descricao:document.getElementById('mct-dsc').value,horario_inicio:document.getElementById('mct-hi').value,horario_fim:document.getElementById('mct-hf').value,dias_semana:'{'+dias.join(',')+'}',permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on')};if(!d.nome)return nt('Informe o nome',true);try{if(id)await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify(d)});else await api('/api/categorias',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Categoria salva!');carregarCats()}catch(e){nt('Erro',true)}}
-async function delCat(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/categorias/${id}`,{method:'DELETE'});nt('Removida.');carregarCats()}catch(e){nt('Erro',true)}}
+async function saveCat(){const id=document.getElementById('mct-id').value;const dias=[];document.querySelectorAll('#mct-dias .dia.on').forEach(b=>dias.push(parseInt(b.dataset.d)));const cans=document.querySelectorAll('#mct-canais .canal');const d={nome:document.getElementById('mct-nom').value,descricao:document.getElementById('mct-dsc').value,horario_inicio:document.getElementById('mct-hi').value,horario_fim:document.getElementById('mct-hf').value,dias_semana:'{'+dias.join(',')+'}',permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on')};if(!d.nome)return nt('Informe o nome',true);try{if(id)await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify(d)});else await api('/api/categorias',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Categoria salva!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function delCat(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/categorias/${id}`,{method:'DELETE'});nt('Removida.');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 
 // ===== ENTREGADORES =====
 async function carregarEnts(){try{const l=await api('/api/entregadores');const c=document.getElementById('lista-ents');c.innerHTML=(l||[]).length?(l||[]).map(e=>`<div class="ir"><div class="in"><div class="inm">${e.ativo?'🟢':'🔴'} ${e.nome}</div><div class="ins">📱 ${e.telefone} · ${e.total_entregas} entregas</div></div><div class="ia"><div class="tmini" onclick="tgEnt(${e.id},${!e.ativo})"><div class="tm ${e.ativo?'on':''}"></div></div><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delEnt(${e.id},'${e.nome.replace(/'/g,"\\'")}')">🗑️</button></div></div>`).join(''):'<div class="es"><p>Nenhum entregador.</p></div>'}catch(e){}}
@@ -964,8 +1094,36 @@ async function addBloq(){const t=document.getElementById('bl-t').value.trim(),n=
 async function delBloq(t){if(!confirm('Desbloquear?'))return;await api(`/api/numeros-bloqueados/${t}`,{method:'DELETE'});nt('Desbloqueado.');carregarBloq()}
 
 // ===== MAPA =====
-function initMapa(){if(mapaInst)return carregarZonas();mapaInst=L.map('mapa-entrega').setView([-23.5505,-51.4332],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(mapaInst);L.marker([-23.5505,-51.4332]).addTo(mapaInst).bindPopup('🏪 Padaria Godoy').openPopup();mapaInst.on('click',e=>{document.getElementById('zo-lat').value=e.latlng.lat.toFixed(6);document.getElementById('zo-lng').value=e.latlng.lng.toFixed(6);document.getElementById('mo-zona').classList.add('on')});carregarZonas()}
-async function carregarZonas(){try{const z=await api('/api/zonas-entrega');mapaInst.eachLayer(l=>{if(l instanceof L.Circle)mapaInst.removeLayer(l)});(z||[]).forEach(zona=>L.circle([zona.lat,zona.lng],{radius:zona.raio_km*1000,color:zona.cor||'#2d6a4f',fillColor:zona.cor||'#2d6a4f',fillOpacity:.15,weight:2}).addTo(mapaInst).bindPopup(`<b>${zona.nome}</b><br>${zona.tipo==='entrega'?'✅':'🚫'} ${zona.raio_km}km<br><button onclick="delZona(${zona.id})" style="margin-top:4px;font-size:10px;background:#c1392b;color:#fff;border:none;padding:2px 7px;border-radius:5px;cursor:pointer">Remover</button>`))}catch(e){}}
+function initMapa(){if(mapaInst)return carregarZonas();mapaInst=L.map('mapa-entrega').setView([-23.5505,-51.4332],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(mapaInst);L.marker([-23.5505,-51.4332]).addTo(mapaInst).bindPopup('🏪 Padaria Godoy').openPopup();mapaInst.on('click',e=>{document.getElementById('zo-lat').value=e.latlng.lat.toFixed(6);document.getElementById('zo-lng').value=e.latlng.lng.toFixed(6);document.getElementById('zo-nom').value='';document.getElementById('zo-raio').value='';document.getElementById('mo-zona').classList.add('on')});carregarZonas()}
+
+async function carregarZonas(){
+  try{
+    const z=await api('/api/zonas-entrega');
+    mapaInst.eachLayer(l=>{if(l instanceof L.Circle||l instanceof L.CircleMarker)mapaInst.removeLayer(l)});
+    (z||[]).forEach(zona=>{
+      const circ=L.circle([zona.lat,zona.lng],{
+        radius:zona.raio_km*1000,color:zona.cor||'#2d6a4f',fillColor:zona.cor||'#2d6a4f',fillOpacity:.15,weight:2
+      }).addTo(mapaInst);
+      // Popup com edição inline
+      circ.bindPopup(`
+        <b>${zona.nome}</b><br>
+        ${zona.tipo==='entrega'?'✅ Área de entrega':'🚫 Sem entrega'}<br>
+        <div style="margin-top:5px">
+          <label style="font-size:11px">Raio (km):</label><br>
+          <input id="edit-raio-${zona.id}" type="number" value="${zona.raio_km}" step="0.5" style="width:70px;padding:3px;margin:3px 0;border:1px solid #ccc;border-radius:4px;font-size:12px">
+          <button onclick="salvarRaio(${zona.id})" style="display:block;width:100%;margin-top:4px;font-size:11px;background:#2d6a4f;color:#fff;border:none;padding:3px 8px;border-radius:5px;cursor:pointer">✓ Salvar Raio</button>
+          <button onclick="delZona(${zona.id})" style="display:block;width:100%;margin-top:3px;font-size:11px;background:#c1392b;color:#fff;border:none;padding:3px 8px;border-radius:5px;cursor:pointer">🗑️ Remover</button>
+        </div>`);
+    });
+  }catch(e){}
+}
+
+async function salvarRaio(id){
+  const raio=parseFloat(document.getElementById(`edit-raio-${id}`)?.value);
+  if(!raio)return;
+  try{await api(`/api/zonas-entrega/${id}`,{method:'PATCH',body:JSON.stringify({raio_km:raio})});nt('✅ Raio atualizado!');mapaInst.closePopup();carregarZonas()}catch(e){nt('Erro',true)}
+}
+window.salvarRaio=salvarRaio;
 function abrirZona(){document.getElementById('mo-zona').classList.add('on')}
 async function saveZona(){const d={nome:document.getElementById('zo-nom').value,tipo:document.getElementById('zo-tipo').value,lat:parseFloat(document.getElementById('zo-lat').value),lng:parseFloat(document.getElementById('zo-lng').value),raio_km:parseFloat(document.getElementById('zo-raio').value),cor:document.getElementById('zo-cor').value};if(!d.nome||!d.lat||!d.lng||!d.raio_km)return nt('Preencha todos os campos',true);try{await api('/api/zonas-entrega',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Zona adicionada!');carregarZonas()}catch(e){nt('Erro',true)}}
 async function delZona(id){if(!confirm('Remover zona?'))return;try{await api(`/api/zonas-entrega/${id}`,{method:'DELETE'});nt('Removida.');carregarZonas()}catch(e){nt('Erro',true)}}
