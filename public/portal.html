@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Godoy — Cardápio</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--marrom:#3d1f0a;--caramelo:#c17f3a;--creme:#fdf6ed;--verde:#2d6a4f;--vermelho:#c1392b;--cinza:#8a7f75;--branco:#fff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--creme);color:var(--marrom)}
+header{background:var(--marrom);padding:20px 24px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(61,31,10,.3)}
+.logo{font-family:'Playfair Display',serif;color:var(--caramelo);font-size:28px;letter-spacing:1px}
+.logo-sub{color:rgba(255,255,255,.5);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-top:3px}
+.header-info{display:flex;justify-content:center;gap:16px;margin-top:8px;flex-wrap:wrap}
+.header-info span{color:rgba(255,255,255,.6);font-size:11px}
+
+/* BANNER */
+.banner{background:linear-gradient(135deg,var(--marrom) 0%,#6b3720 100%);padding:32px 24px;text-align:center;color:#fff}
+.banner h2{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:6px}
+.banner p{color:rgba(255,255,255,.65);font-size:13px}
+
+/* MAIS VENDIDOS */
+.mais-vendidos{padding:20px 20px 0;overflow-x:auto;scrollbar-width:none}
+.mais-vendidos::-webkit-scrollbar{display:none}
+.mv-titulo{font-family:'Playfair Display',serif;font-size:18px;margin-bottom:12px;padding:0 2px}
+.mv-row{display:flex;gap:10px;padding-bottom:4px}
+.mv-card{flex-shrink:0;width:130px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(61,31,10,.07);cursor:pointer;transition:all .2s}
+.mv-card:hover{transform:translateY(-2px);box-shadow:0 5px 16px rgba(61,31,10,.12)}
+.mv-img{width:100%;height:80px;object-fit:cover;background:var(--creme);display:flex;align-items:center;justify-content:center;font-size:28px}
+.mv-img img{width:100%;height:100%;object-fit:cover}
+.mv-body{padding:7px 9px}
+.mv-nome{font-size:12px;font-weight:500;color:var(--marrom);margin-bottom:2px}
+.mv-preco{font-size:11px;color:var(--verde);font-weight:600}
+
+/* CATEGORIAS NAV */
+.cat-nav{padding:14px 20px 0;overflow-x:auto;scrollbar-width:none;display:flex;gap:7px}
+.cat-nav::-webkit-scrollbar{display:none}
+.cat-nav-btn{padding:7px 14px;border-radius:100px;border:2px solid rgba(61,31,10,.15);background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;font-weight:500;color:var(--cinza);white-space:nowrap;transition:all .2s}
+.cat-nav-btn.ativo,.cat-nav-btn:hover{background:var(--marrom);border-color:var(--marrom);color:#fff}
+
+/* MENU */
+.menu-container{padding:14px 20px 120px}
+.categoria-secao{margin-bottom:24px}
+.cat-titulo{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:4px}
+.cat-desc{font-size:12px;color:var(--cinza);margin-bottom:10px}
+.produtos-lista{display:grid;gap:9px}
+.produto-item{background:#fff;border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-shadow:0 2px 8px rgba(61,31,10,.05);border:1px solid rgba(61,31,10,.06);cursor:pointer;transition:all .2s}
+.produto-item:hover{box-shadow:0 4px 14px rgba(61,31,10,.1);transform:translateY(-1px)}
+.produto-item.selecionado{border:2px solid var(--caramelo)}
+.pi-img{width:70px;height:70px;border-radius:9px;object-fit:cover;background:var(--creme);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.pi-img img{width:70px;height:70px;border-radius:9px;object-fit:cover}
+.pi-info{flex:1}
+.pi-nome{font-family:'Playfair Display',serif;font-size:15px;margin-bottom:3px}
+.pi-desc{font-size:12px;color:var(--cinza);margin-bottom:6px;line-height:1.4}
+.pi-preco{font-size:15px;color:var(--verde);font-weight:600;font-family:'Playfair Display',serif}
+.pi-unidade{font-size:11px;color:var(--cinza)}
+.pi-tags{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.pi-tag{font-size:10px;padding:2px 7px;border-radius:100px;background:var(--creme);color:var(--cinza)}
+.pi-add{display:flex;align-items:center;gap:6px;margin-top:8px}
+.qtd-btn{width:28px;height:28px;border-radius:50%;border:2px solid var(--caramelo);background:transparent;color:var(--caramelo);font-size:16px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}
+.qtd-num{font-size:14px;font-weight:500;min-width:20px;text-align:center}
+
+/* CARRINHO */
+.carrinho-fab{position:fixed;bottom:80px;right:20px;background:var(--caramelo);color:#fff;border:none;border-radius:100px;padding:12px 20px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 6px 20px rgba(193,127,58,.4);display:flex;align-items:center;gap:8px;z-index:300;transition:all .2s}
+.carrinho-fab:hover{background:#a66d2e;transform:scale(1.04)}
+.carrinho-badge{background:#fff;color:var(--caramelo);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+
+/* MODAL CARRINHO */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-carrinho{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:22px}
+.modal-titulo{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.carrinho-vazio{text-align:center;padding:30px;color:var(--cinza);font-size:13px}
+.cart-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(61,31,10,.07)}
+.cart-item-nome{flex:1;font-size:13px;font-weight:500}
+.cart-item-preco{font-size:13px;color:var(--verde);font-weight:600}
+.cart-total{padding:12px 0;display:flex;justify-content:space-between;align-items:center}
+.cart-total-label{font-size:14px;font-weight:500}
+.cart-total-valor{font-family:'Playfair Display',serif;font-size:22px;color:var(--verde)}
+
+/* CHECKOUT */
+.checkout{padding:14px 0}
+.checkout h3{font-family:'Playfair Display',serif;font-size:16px;margin-bottom:12px}
+.form-group{margin-bottom:10px}
+.form-group label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--cinza);margin-bottom:3px;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 11px;border:1.5px solid rgba(61,31,10,.13);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--marrom);background:var(--creme);outline:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--caramelo);background:#fff}
+.btn-finalizar{width:100%;background:var(--caramelo);color:#fff;border:none;padding:14px;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;margin-top:10px;transition:all .2s}
+.btn-finalizar:hover{background:#a66d2e}
+.btn-fechar{background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--cinza)}
+
+/* SUCESSO */
+.sucesso{text-align:center;padding:30px 20px}
+.sucesso-icon{font-size:56px;margin-bottom:14px}
+.sucesso h2{font-family:'Playfair Display',serif;font-size:24px;color:var(--marrom);margin-bottom:8px}
+.sucesso p{font-size:13px;color:var(--cinza);line-height:1.6}
+.pix-box{background:var(--creme);border-radius:12px;padding:16px;margin:16px 0;text-align:center}
+.pix-chave{font-size:15px;font-weight:600;color:var(--marrom);margin:8px 0}
+
+@media(min-width:480px){.modal-carrinho{border-radius:16px;margin:auto;margin-bottom:0}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Godoy</div>
+  <div class="logo-sub" id="portal-subtitulo">Panificadora & Confeitaria</div>
+  <div class="header-info">
+    <span id="portal-horario">Seg-Sáb 06h30-19h30</span>
+    <span id="portal-telefone"></span>
+  </div>
+</header>
+
+<div class="banner">
+  <h2>Nosso Cardápio 🍞</h2>
+  <p id="portal-endereco">R. Aquiles, 231 - Vila Shangri-Lá, Apucarana/PR</p>
+</div>
+
+<div class="mais-vendidos" id="mais-vendidos-sec" style="display:none">
+  <div class="mv-titulo">🔥 Mais Pedidos</div>
+  <div class="mv-row" id="mv-lista"></div>
+</div>
+
+<div class="cat-nav" id="cat-nav"></div>
+<div class="menu-container" id="menu-container"></div>
+
+<button class="carrinho-fab" id="carrinho-fab" style="display:none" onclick="abrirCarrinho()">
+  🛒 Ver carrinho <span class="carrinho-badge" id="carrinho-qtd">0</span>
+</button>
+
+<div class="modal-overlay" id="modal-carrinho">
+  <div class="modal-carrinho">
+    <div id="carrinho-conteudo"></div>
+  </div>
+</div>
+
+<script>
+let cardapio=null, carrinho=[], config={};
+
+async function carregarCardapio(){
+  try{
+    const d=await(await fetch('/api/portal/cardapio')).json();
+    cardapio=d; config=d.configuracoes||{};
+    // Header
+    if(config.horario_loja)document.getElementById('portal-horario').textContent=config.horario_loja;
+    if(config.telefone_padaria)document.getElementById('portal-telefone').textContent='📱 '+config.telefone_padaria;
+    if(config.endereco_padaria)document.getElementById('portal-endereco').textContent=config.endereco_padaria;
+    // Mais vendidos
+    if(d.maisVendidos?.length){
+      document.getElementById('mais-vendidos-sec').style.display='block';
+      document.getElementById('mv-lista').innerHTML=d.maisVendidos.map(p=>`
+        <div class="mv-card" onclick="scrollParaProduto(${p.id})">
+          <div class="mv-img">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}">`:'🍞'}</div>
+          <div class="mv-body"><div class="mv-nome">${p.nome}</div><div class="mv-preco">R$ ${Number(p.preco).toFixed(2)}</div></div>
+        </div>`).join('');
+    }
+    // Nav categorias
+    document.getElementById('cat-nav').innerHTML=d.categorias.map((c,i)=>`<button class="cat-nav-btn ${i===0?'ativo':''}" onclick="scrollCategoria('cat-${c.id}',this)">${c.nome}</button>`).join('');
+    // Menu
+    document.getElementById('menu-container').innerHTML=d.categorias.map(cat=>`
+      <div class="categoria-secao" id="cat-${cat.id}">
+        <div class="cat-titulo">${cat.nome}</div>
+        ${cat.descricao?`<div class="cat-desc">${cat.descricao}</div>`:''}
+        <div class="produtos-lista">
+          ${(cat.produtos||[]).map(p=>`
+            <div class="produto-item" id="pi-${p.id}">
+              <div class="pi-img">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}">`:'🍞'}</div>
+              <div class="pi-info">
+                <div class="pi-nome">${p.destaque?'⭐ ':''}${p.nome}</div>
+                ${p.descricao?`<div class="pi-desc">${p.descricao}</div>`:''}
+                <div class="pi-preco">R$ ${Number(p.preco).toFixed(2)} <span class="pi-unidade">/ ${p.unidade}</span></div>
+                <div class="pi-tags">
+                  ${p.tipo_pedido==='agendamento'?'<span class="pi-tag">📅 Agendamento</span>':p.tipo_pedido==='hora'?'<span class="pi-tag">⚡ Na hora</span>':''}
+                  ${!p.permite_delivery?'<span class="pi-tag" style="background:#f8d7da;color:#842029">🚫 Sem delivery</span>':''}
+                </div>
+                <div class="pi-add">
+                  <button class="qtd-btn" onclick="event.stopPropagation();alterarQtd(${p.id},-1,${p.preco},'${p.nome.replace(/'/g,"\\'")}','${p.unidade}')">−</button>
+                  <span class="qtd-num" id="qtd-${p.id}">0</span>
+                  <button class="qtd-btn" style="background:var(--caramelo);color:#fff" onclick="event.stopPropagation();alterarQtd(${p.id},1,${p.preco},'${p.nome.replace(/'/g,"\\'")}','${p.unidade}')">+</button>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  }catch(e){document.getElementById('menu-container').innerHTML='<div style="text-align:center;padding:40px;color:var(--cinza)"><p>Erro ao carregar cardápio. Tente novamente.</p></div>'}
+}
+
+function scrollCategoria(id,btn){
+  document.querySelectorAll('.cat-nav-btn').forEach(b=>b.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function scrollParaProduto(id){document.getElementById('pi-'+id)?.scrollIntoView({behavior:'smooth',block:'center'})}
+
+function alterarQtd(id,delta,preco,nome,unidade){
+  const qtdEl=document.getElementById('qtd-'+id);
+  let qtd=parseInt(qtdEl.textContent||'0')+delta;
+  if(qtd<0)qtd=0;
+  qtdEl.textContent=qtd;
+  const idx=carrinho.findIndex(x=>x.id===id);
+  if(qtd===0&&idx>=0)carrinho.splice(idx,1);
+  else if(idx>=0)carrinho[idx].qtd=qtd;
+  else if(qtd>0)carrinho.push({id,nome,preco,unidade,qtd});
+  atualizarFab();
+}
+
+function atualizarFab(){
+  const total=carrinho.reduce((s,x)=>s+x.qtd,0);
+  document.getElementById('carrinho-fab').style.display=total>0?'flex':'none';
+  document.getElementById('carrinho-qtd').textContent=total;
+}
+
+function abrirCarrinho(){document.getElementById('modal-carrinho').classList.add('show');renderCarrinho()}
+function fecharCarrinho(){document.getElementById('modal-carrinho').classList.remove('show')}
+document.getElementById('modal-carrinho').addEventListener('click',e=>{if(e.target===document.getElementById('modal-carrinho'))fecharCarrinho()});
+
+function renderCarrinho(){
+  const total=carrinho.reduce((s,x)=>s+x.qtd*x.preco,0);
+  document.getElementById('carrinho-conteudo').innerHTML=`
+    <div class="modal-titulo">🛒 Carrinho <button class="btn-fechar" onclick="fecharCarrinho()">✕</button></div>
+    ${!carrinho.length?'<div class="carrinho-vazio">Seu carrinho está vazio</div>':`
+      ${carrinho.map(i=>`<div class="cart-item">
+        <div class="cart-item-nome">${i.qtd}x ${i.nome}</div>
+        <div class="cart-item-preco">R$ ${(i.qtd*i.preco).toFixed(2)}</div>
+      </div>`).join('')}
+      <div class="cart-total"><span class="cart-total-label">Total</span><span class="cart-total-valor">R$ ${total.toFixed(2)}</span></div>
+      <div class="checkout">
+        <h3>Seus dados</h3>
+        <div class="form-group"><label>Nome completo</label><input id="ch-nome" placeholder="Seu nome"></div>
+        <div class="form-group"><label>WhatsApp</label><input id="ch-tel" placeholder="(43) 99999-9999" type="tel"></div>
+        <div class="form-group"><label>Tipo</label>
+          <select id="ch-tipo" onchange="toggleChEnd()">
+            <option value="retirada">🏪 Retirada na loja</option>
+            <option value="entrega">🛵 Entrega</option>
+          </select>
+        </div>
+        <div class="form-group" id="ch-end-group" style="display:none"><label>Endereço completo</label><input id="ch-end" placeholder="Rua, número, bairro"></div>
+        <div class="form-group"><label>Pagamento</label>
+          <select id="ch-pgto"><option>Pix</option><option>Cartão de crédito</option><option>Cartão de débito</option><option>Dinheiro</option></select>
+        </div>
+        <div class="form-group"><label>Observações (opcional)</label><textarea id="ch-obs" rows="2" placeholder="Alergias, preferências..."></textarea></div>
+        <button class="btn-finalizar" onclick="finalizarPedido()">Finalizar pedido — R$ ${total.toFixed(2)}</button>
+      </div>`}`;
+}
+
+function toggleChEnd(){document.getElementById('ch-end-group').style.display=document.getElementById('ch-tipo').value==='entrega'?'block':'none'}
+
+async function finalizarPedido(){
+  const nome=document.getElementById('ch-nome').value.trim();
+  const tel=document.getElementById('ch-tel').value.trim().replace(/\D/g,'');
+  const tipo=document.getElementById('ch-tipo').value;
+  const end=tipo==='entrega'?document.getElementById('ch-end').value.trim():'';
+  const pgto=document.getElementById('ch-pgto').value;
+  const obs=document.getElementById('ch-obs').value.trim();
+  if(!nome||!tel)return alert('Preencha nome e WhatsApp!');
+  if(tipo==='entrega'&&!end)return alert('Informe o endereço de entrega!');
+  const total=carrinho.reduce((s,x)=>s+x.qtd*x.preco,0);
+  const itensStr=carrinho.map(i=>`${i.qtd}x ${i.nome}`).join(', ');
+  try{
+    const r=await(await fetch('/api/portal/pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome_cliente:nome,telefone:'55'+tel,email:'',itens:itensStr,observacoes:obs,tipo,endereco:end,forma_pagamento:pgto,valor_total:total})})).json();
+    if(r.success){
+      const chavePix=config.chave_pix||'07.215.675/0001-05';
+      document.getElementById('carrinho-conteudo').innerHTML=`
+        <div class="sucesso">
+          <div class="sucesso-icon">🎉</div>
+          <h2>Pedido #${r.pedidoId} recebido!</h2>
+          <p>Você receberá uma confirmação pelo WhatsApp.<br>Assim que confirmarmos o pagamento, iniciamos a produção!</p>
+          ${pgto==='Pix'?`<div class="pix-box"><div style="font-size:12px;color:var(--cinza);margin-bottom:4px">Envie o Pix para confirmar</div><div class="pix-chave">🔑 ${chavePix}</div><div style="font-size:12px;color:var(--cinza)">Envie o comprovante pelo WhatsApp</div></div>`:''}
+          <button class="btn-finalizar" onclick="fecharCarrinho();location.reload()">✓ Fechar</button>
+        </div>`;
+      carrinho=[];
+      document.querySelectorAll('[id^="qtd-"]').forEach(el=>el.textContent='0');
+      atualizarFab();
+    }
+  }catch(e){alert('Erro ao finalizar pedido. Tente novamente.')}
+}
+
+carregarCardapio();
+</script>
+</body>
+</html>
