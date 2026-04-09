@@ -98,15 +98,24 @@ app.get('/api/pedidos', async (req, res) => {
     let p = []; let i = 1;
     if (data) { q+=` AND DATE(criado_em AT TIME ZONE 'America/Sao_Paulo')=$${i++}`; p.push(data); }
     if (busca) { q+=` AND (nome_cliente ILIKE $${i} OR telefone ILIKE $${i} OR itens ILIKE $${i})`; p.push(`%${busca}%`); i++; }
-    // Separação: 'dia' = sem agendamento ou agendamento hoje, 'agendados' = agendamento futuro
+    // Separação explícita pelo campo tipo_kanban
     if (tipo_kanban === 'dia') {
-      q += ` AND (data_agendamento IS NULL OR DATE(data_agendamento AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE)`;
+      q += ` AND tipo_kanban = 'imediato'`;
     } else if (tipo_kanban === 'agendados') {
-      q += ` AND data_agendamento IS NOT NULL AND DATE(data_agendamento AT TIME ZONE 'America/Sao_Paulo') > CURRENT_DATE`;
+      q += ` AND tipo_kanban = 'agendado'`;
     }
-    q += ordenar==='agendamento' ? ' ORDER BY data_agendamento ASC NULLS LAST, criado_em DESC' : ' ORDER BY criado_em DESC';
+    q += tipo_kanban === 'agendados' ? ' ORDER BY data_agendamento ASC NULLS LAST, criado_em DESC' : ' ORDER BY criado_em DESC';
     q += ' LIMIT 300';
     res.json((await pool.query(q,p)).rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Endpoint para mover pedido entre kanban
+app.patch('/api/pedidos/:id/tipo-kanban', async (req, res) => {
+  const { tipo_kanban } = req.body; // 'imediato' ou 'agendado'
+  try {
+    await pool.query('UPDATE pedidos SET tipo_kanban=$1 WHERE id=$2',[tipo_kanban, req.params.id]);
+    res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -136,7 +145,7 @@ app.patch('/api/pedidos/:id/editar', async (req, res) => {
     const ant=(await pool.query('SELECT * FROM pedidos WHERE id=$1',[id])).rows[0];
     if(!ant) return res.status(404).json({error:'Não encontrado'});
     const f=[]; const v=[]; let i=1;
-    ['nome_cliente','itens','forma_pagamento','valor_total','observacoes','endereco','tipo','status','data_agendamento'].forEach(c=>{if(body[c]!==undefined){f.push(`${c}=$${i++}`);v.push(body[c])}});
+    ['nome_cliente','itens','forma_pagamento','valor_total','observacoes','endereco','tipo','status','data_agendamento','tipo_kanban'].forEach(c=>{if(body[c]!==undefined){f.push(`${c}=$${i++}`);v.push(body[c])}});
     if(!f.length) return res.json({success:true});
     v.push(id); await pool.query(`UPDATE pedidos SET ${f.join(',')} WHERE id=$${i}`,v);
     await regHist(id,'edicao','Editado manualmente',ant,body);
@@ -160,11 +169,12 @@ app.get('/api/pedidos/:id/historico', async (req, res) => {
 });
 
 app.post('/api/pedidos/parcial', async (req, res) => {
-  const {telefone,nome_cliente,itens,observacoes,status}=req.body;
+  const {telefone,nome_cliente,itens,observacoes,status,tipo_kanban}=req.body;
   try {
     const ex=await pool.query("SELECT id FROM pedidos WHERE telefone=$1 AND status='aguardando_horario'",[telefone]);
     if(ex.rows.length) return res.json({success:true,id:ex.rows[0].id});
-    const r=await pool.query('INSERT INTO pedidos(telefone,nome_cliente,itens,observacoes,status,criado_em)VALUES($1,$2,$3,$4,$5,NOW())RETURNING id',[telefone,nome_cliente,itens,observacoes,status||'aguardando_horario']);
+    const tk = tipo_kanban || 'agendado'; // padrão agendado pois vem do fluxo de encomendas
+    const r=await pool.query('INSERT INTO pedidos(telefone,nome_cliente,itens,observacoes,status,tipo_kanban,criado_em)VALUES($1,$2,$3,$4,$5,$6,NOW())RETURNING id',[telefone,nome_cliente,itens,observacoes,status||'aguardando_horario',tk]);
     res.json({success:true,id:r.rows[0].id});
   } catch(e) { res.status(500).json({error:e.message}); }
 });
@@ -295,11 +305,31 @@ app.post('/api/produtos/:id/imagem',async(req,res)=>{const{imagem_base64,tipo}=r
 
 app.get('/api/cardapio',async(req,res)=>{
   try{
-    const prods=(await pool.query('SELECT p.*,c.nome as cat_nome FROM produtos p LEFT JOIN categorias c ON p.categoria_id=c.id WHERE p.disponivel=true ORDER BY p.categoria,p.ordem,p.nome')).rows;
+    // Busca produtos COM dados da categoria para aplicar restrições
+    const prods=(await pool.query(`
+      SELECT p.*,
+        COALESCE(c.nome, p.categoria) as cat_nome,
+        -- Categoria sobrescreve produto: regra mais restritiva vence
+        (p.permite_delivery AND COALESCE(c.permite_delivery, true)) as permite_delivery_efetivo,
+        (p.permite_retirada AND COALESCE(c.permite_retirada, true)) as permite_retirada_efetivo,
+        (p.permite_salao AND COALESCE(c.permite_salao, false)) as permite_salao_efetivo
+      FROM produtos p
+      LEFT JOIN categorias c ON p.categoria_id=c.id
+      WHERE p.disponivel=true
+        AND COALESCE(c.disponivel, true)=true
+      ORDER BY p.categoria,p.ordem,p.nome`)).rows;
     const combos=(await pool.query('SELECT * FROM combos WHERE disponivel=true ORDER BY destaque DESC,ordem,nome')).rows;
     const cats={};
-    prods.forEach(p=>{const c=p.categoria||p.cat_nome||'Geral';if(!cats[c])cats[c]=[];cats[c].push(`  - ${p.nome}: R$ ${Number(p.preco).toFixed(2)}/${p.unidade}${p.descricao?' ('+p.descricao+')':''}`)});
-    if(combos.length){cats['Combos']=combos.map(c=>`  - ${c.nome}: R$ ${Number(c.preco).toFixed(2)} (Combo especial${c.descricao?' - '+c.descricao:''})`)}
+    prods.forEach(p=>{
+      const c=p.categoria||p.cat_nome||'Geral';
+      if(!cats[c])cats[c]=[];
+      const canais=[];
+      if(p.permite_delivery_efetivo)canais.push('delivery');
+      if(p.permite_retirada_efetivo)canais.push('retirada');
+      if(p.permite_salao_efetivo)canais.push('salão');
+      cats[c].push(`  - ${p.nome}: R$ ${Number(p.preco).toFixed(2)}/${p.unidade}${p.descricao?' ('+p.descricao+')':''}${canais.length<3?' ['+canais.join('/')+']':''}`);
+    });
+    if(combos.length){cats['Kits/Combos']=combos.map(c=>`  - ${c.nome}: R$ ${Number(c.preco).toFixed(2)} — ${c.descricao||''}`)}
     res.json({values:Object.entries(cats).map(([c,i])=>`${c}:\n${i.join('\n')}`).join('\n\n'),produtos:prods,combos});
   }catch(e){res.status(500).json({error:e.message})}
 });
