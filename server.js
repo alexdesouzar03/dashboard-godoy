@@ -173,7 +173,7 @@ app.post('/api/pedidos/parcial', async (req, res) => {
   try {
     const ex=await pool.query("SELECT id FROM pedidos WHERE telefone=$1 AND status='aguardando_horario'",[telefone]);
     if(ex.rows.length) return res.json({success:true,id:ex.rows[0].id});
-    const tk = tipo_kanban || 'agendado'; // padrão agendado pois vem do fluxo de encomendas
+    const tk = tipo_kanban || 'imediato'; // padrão agendado pois vem do fluxo de encomendas
     const r=await pool.query('INSERT INTO pedidos(telefone,nome_cliente,itens,observacoes,status,tipo_kanban,criado_em)VALUES($1,$2,$3,$4,$5,$6,NOW())RETURNING id',[telefone,nome_cliente,itens,observacoes,status||'aguardando_horario',tk]);
     res.json({success:true,id:r.rows[0].id});
   } catch(e) { res.status(500).json({error:e.message}); }
