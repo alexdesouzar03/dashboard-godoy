@@ -32,6 +32,11 @@ async function auth(req, res, next) {
   const pub = ['/api/login', '/api/portal/', '/api/cardapio'];
   if (pub.some(p => req.path.startsWith(p))) return next();
 
+  // API Key para o n8n acessar sem sessão de painel
+  const N8N_API_KEY = process.env.N8N_API_KEY || 'godoy-n8n-key-2024';
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey && apiKey === N8N_API_KEY) return next();
+
   const token = req.headers['x-token'] || req.query.token;
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
 
