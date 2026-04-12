@@ -705,6 +705,7 @@ async function carregarCardapioUnificado() {
             <div onclick="event.stopPropagation();tgCat(${cat.id},${!cat.disponivel})" class="tmini"><div class="tm ${cat.disponivel?'on':''}"></div></div>
             <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();editCat(${cat.id})">✏️</button>
             <button class="btn bc" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();abrirProdutoCat(${cat.id},'${cat.nome.replace(/'/g,"\\'")}')">+ Produto</button>
+            <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();deletarCategoria(${cat.id},'${cat.nome.replace(/'/g,"\\'")}')">🗑️</button>
             <span class="cat-chevron" id="chev-${cat.id}">▼</span>
           </div>
         </div>
@@ -1027,8 +1028,14 @@ async function tgCat(id,d){try{await api(`/api/categorias/${id}/disponibilidade`
 function abrirCategoria(c=null){document.getElementById('mct-id').value=c?.id||'';document.getElementById('mct-tt').textContent=c?'✏️ Editar':'📂 Nova Categoria';document.getElementById('mct-nom').value=c?.nome||'';document.getElementById('mct-dsc').value=c?.descricao||'';document.getElementById('mct-hi').value=c?.horario_inicio?.slice(0,5)||'06:00';document.getElementById('mct-hf').value=c?.horario_fim?.slice(0,5)||'20:00';const diasRaw=c?.dias_semana;const dias=Array.isArray(diasRaw)?diasRaw:String(diasRaw||'{0,1,2,3,4,5,6}').replace(/[{}]/g,'').split(',').map(Number).filter(n=>!isNaN(n));document.querySelectorAll('#mct-dias .dia').forEach(b=>b.classList.toggle('on',dias.includes(parseInt(b.dataset.d))));const cans=document.querySelectorAll('#mct-canais .canal');cans[0].classList.toggle('on',c?.permite_delivery!==false);cans[1].classList.toggle('on',c?.permite_retirada!==false);cans[2].classList.toggle('on',c?.permite_salao||false);document.getElementById('mo-cat').classList.add('on')}
 async function editCat(id){const c=await api('/api/categorias');const x=c?.find(y=>y.id===id);if(x)abrirCategoria(x)}
 async function saveCat(){const id=document.getElementById('mct-id').value;const dias=[];document.querySelectorAll('#mct-dias .dia.on').forEach(b=>dias.push(parseInt(b.dataset.d)));const cans=document.querySelectorAll('#mct-canais .canal');const d={nome:document.getElementById('mct-nom').value,descricao:document.getElementById('mct-dsc').value,horario_inicio:document.getElementById('mct-hi').value,horario_fim:document.getElementById('mct-hf').value,dias_semana:'{'+dias.join(',')+'}',permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on')};if(!d.nome)return nt('Informe o nome',true);try{if(id)await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify(d)});else await api('/api/categorias',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Categoria salva!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-async function delCat(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/categorias/${id}`,{method:'DELETE'});nt('Removida.');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-
+async function deletarCategoria(id, n) {
+  if (!confirm(`⚠️ Excluir categoria "${n}"?\n\nTodos os produtos desta categoria serão excluídos junto.\n\nEsta ação não pode ser desfeita.`)) return;
+  try {
+    await api(`/api/categorias/${id}`, { method: 'DELETE' });
+    nt('✅ Categoria "' + n + '" excluída!');
+    carregarCardapioUnificado();
+  } catch(e) { nt('Erro ao excluir', true); }
+}
 // ===== ENTREGADORES =====
 async function carregarEnts(){try{const l=await api('/api/entregadores');const c=document.getElementById('lista-ents');c.innerHTML=(l||[]).length?(l||[]).map(e=>`<div class="ir"><div class="in"><div class="inm">${e.ativo?'🟢':'🔴'} ${e.nome}</div><div class="ins">📱 ${e.telefone} · ${e.total_entregas} entregas</div></div><div class="ia"><div class="tmini" onclick="tgEnt(${e.id},${!e.ativo})"><div class="tm ${e.ativo?'on':''}"></div></div><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delEnt(${e.id},'${e.nome.replace(/'/g,"\\'")}')">🗑️</button></div></div>`).join(''):'<div class="es"><p>Nenhum entregador.</p></div>'}catch(e){}}
 async function addEnt(){const n=document.getElementById('ent-n').value.trim(),t=document.getElementById('ent-t').value.trim();if(!n||!t)return nt('Preencha nome e WhatsApp',true);try{await api('/api/entregadores',{method:'POST',body:JSON.stringify({nome:n,telefone:t})});['ent-n','ent-t'].forEach(x=>document.getElementById(x).value='');nt('✅ Adicionado!');carregarEnts()}catch(e){nt('Erro',true)}}
