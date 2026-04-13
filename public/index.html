@@ -218,8 +218,7 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
 <div class="tabs">
   <button class="tb on" onclick="mudarTab('pedidos',this)">📋 Pedidos</button>
   <button class="tb" onclick="mudarTab('cardapio',this)">🍞 Cardápio</button>
-  <button class="tb" onclick="mudarTab('combos',this)">🎁 Combos</button>
-  <button class="tb" onclick="mudarTab('entregadores',this)">🛵 Entregadores</button>
+    <button class="tb" onclick="mudarTab('entregadores',this)">🛵 Entregadores</button>
   <button class="tb" onclick="mudarTab('pontos',this)">⭐ Pontos</button>
   <button class="tb" onclick="mudarTab('relatorios',this)">📊 Relatórios</button>
   <button class="tb" onclick="mudarTab('clientes-especiais',this)">💎 Especiais</button>
@@ -252,13 +251,13 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
           <button class="btn bout" onclick="abrirProduto()">+ Produto</button>
         </div>
       </div>
-      <div id="cardapio-unificado"></div>
+      <div class="gdesc">Kits festa agora devem ser cadastrados como produto/categoria no cardápio. A aba de combos ficou ocultada no painel. Horários respeitam as configurações gerais e a ordem pode ser ajustada pelos controles rápidos ou manualmente.</div><div id="cardapio-unificado"></div>
     </div>
   </div>
 </div>
 
 <!-- COMBOS -->
-<div id="tab-combos" class="tc">
+<div id="tab-combos" class="tc" style="display:none">
   <div class="gc">
     <div class="gcard">
       <div class="gtt">🎁 Combos <button class="btn bc" onclick="abrirCombo()">+ Novo Combo</button></div>
@@ -507,7 +506,7 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
     <input type="hidden" id="pp-id">
     <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Nome</label><input id="pp-nom"></div><div class="fg"><label>Categoria</label><select id="pp-cat"><option value="">Selecione...</option></select></div></div>
     <div class="fg" style="margin-bottom:6px"><label>Descrição</label><input id="pp-dsc"></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Preço R$</label><input type="number" id="pp-pre" step="0.10"></div><div class="fg"><label>Unidade</label><select id="pp-uni"><option>unidade</option><option>kg</option><option>cento</option><option>dúzia</option><option>bandeja</option></select></div></div>
+    <div class="fr f3" style="margin-bottom:6px"><div class="fg"><label>Preço R$</label><input type="number" id="pp-pre" step="0.10"></div><div class="fg"><label>Unidade</label><select id="pp-uni"><option>unidade</option><option>kg</option><option>cento</option><option>dúzia</option><option>bandeja</option></select></div><div class="fg"><label>Ordem</label><input type="number" id="pp-ord" min="0" step="1" placeholder="0"></div></div><div style="font-size:10px;color:var(--g);margin:-2px 0 6px">Este produto respeita os horários configurados em ⚙️ Config e as regras da categoria selecionada.</div>
     <div class="fg" style="margin-bottom:6px"><label>Tipo de Pedido</label><select id="pp-tip"><option value="ambos">📅⚡ Agendamento e na hora</option><option value="agendamento">📅 Somente agendamento</option><option value="hora">⚡ Somente na hora</option></select></div>
     <div class="fg" style="margin-bottom:6px"><label>Disponível para</label><div class="canais" id="pp-canais"><div class="canal on" data-c="delivery" onclick="tCanal(this)">🛵 Delivery</div><div class="canal on" data-c="retirada" onclick="tCanal(this)">🏪 Retirada</div><div class="canal" data-c="salao" onclick="tCanal(this)">🍽️ Salão</div></div></div>
     <div class="fg" style="margin-bottom:6px"><label>Imagem</label><input type="file" id="pp-img" accept="image/*" onchange="prevImg(this,'pp-prv')" style="font-size:10px;padding:3px"><img id="pp-prv" style="width:100%;height:75px;object-fit:cover;border-radius:7px;margin-top:4px;display:none"></div>
@@ -578,7 +577,7 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
     <input type="hidden" id="mct-id">
     <div class="fg" style="margin-bottom:6px"><label>Nome</label><input id="mct-nom"></div>
     <div class="fg" style="margin-bottom:6px"><label>Descrição</label><textarea id="mct-dsc" rows="2"></textarea></div>
-    <div class="fr f2" style="margin-bottom:6px"><div class="fg"><label>Horário início</label><input type="time" id="mct-hi" value="06:00"></div><div class="fg"><label>Horário fim</label><input type="time" id="mct-hf" value="20:00"></div></div>
+    <div class="fr f3" style="margin-bottom:6px"><div class="fg"><label>Horário início</label><input type="time" id="mct-hi" value="06:00"></div><div class="fg"><label>Horário fim</label><input type="time" id="mct-hf" value="20:00"></div><div class="fg"><label>Ordem</label><input type="number" id="mct-ord" min="0" step="1" placeholder="0"></div></div><div style="font-size:10px;color:var(--g);margin:-2px 0 6px">Os horários da categoria respeitam a janela configurada em ⚙️ Config.</div>
     <div class="fg" style="margin-bottom:6px"><label>Dias disponíveis</label><div class="dias" id="mct-dias"><button class="dia on" data-d="0" onclick="tDia(this)">D</button><button class="dia on" data-d="1" onclick="tDia(this)">S</button><button class="dia on" data-d="2" onclick="tDia(this)">T</button><button class="dia on" data-d="3" onclick="tDia(this)">Q</button><button class="dia on" data-d="4" onclick="tDia(this)">Q</button><button class="dia on" data-d="5" onclick="tDia(this)">S</button><button class="dia on" data-d="6" onclick="tDia(this)">S</button></div></div>
     <div class="fg" style="margin-bottom:6px"><label>Canais</label><div class="canais" id="mct-canais"><div class="canal on" data-c="delivery" onclick="tCanal(this)">🛵 Delivery</div><div class="canal on" data-c="retirada" onclick="tCanal(this)">🏪 Retirada</div><div class="canal" data-c="salao" onclick="tCanal(this)">🍽️ Salão</div></div></div>
     <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="saveCat()">💾 Salvar</button></div>
@@ -612,7 +611,11 @@ let todos=[], ulTotal=0, ausAtivo=false, mapaInst=null, filtroCatProd='todas', k
 let categoriasAbertas = new Set();
 let prodImgB64=null, prodImgTp=null, cbImgB64=null, cbImgTp=null;
 let cbItens=[], relC1=null, relC2=null, relC3=null;
+let CONFIG_GERAL = {};
 const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function normTime(v, fallback){return /^\d{2}:\d{2}$/.test(String(v||''))?String(v).slice(0,5):fallback;}
+function clampHorario(v, minV, maxV){const val=normTime(v,minV); if(val < minV) return minV; if(val > maxV) return maxV; return val;}
+
 
 // API helper
 async function api(url, opts={}) {
@@ -680,12 +683,12 @@ document.getElementById('lg-senha').addEventListener('keydown', e => { if(e.key=
 function tocarSom(f=[880,660,880]){try{const c=new(window.AudioContext||window.webkitAudioContext)();f.forEach((fr,i)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=fr;g.gain.setValueAtTime(.22,c.currentTime+i*.15);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+i*.15+.4);o.start(c.currentTime+i*.15);o.stop(c.currentTime+i*.15+.4)})}catch(e){}}
 function relogio(){const a=new Date();document.getElementById('relogio').textContent=a.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})+' '+a.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
 setInterval(relogio,1000);relogio();
-function mudarTab(n,b){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.tc').forEach(x=>x.classList.remove('on'));if(b)b.classList.add('on');document.getElementById('tab-'+n).classList.add('on');if(n==='cardapio')carregarCardapioUnificado();if(n==='combos')carregarCombos();if(n==='entregadores')carregarEnts();if(n==='pontos')carregarPontos();if(n==='relatorios')carregarRel(30);if(n==='clientes-especiais')carregarVip();if(n==='bloqueados')carregarBloq();if(n==='entrega'){carregarFaixas();initMapa();}if(n==='configuracoes')carregarCfg();if(n==='ausencia')carregarAus()}
+function mudarTab(n,b){document.querySelectorAll('.tb').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.tc').forEach(x=>x.classList.remove('on'));if(b)b.classList.add('on');document.getElementById('tab-'+n).classList.add('on');if(n==='cardapio'){carregarCfgSilencioso();carregarCardapioUnificado();}if(n==='combos')carregarCombos();if(n==='entregadores')carregarEnts();if(n==='pontos')carregarPontos();if(n==='relatorios')carregarRel(30);if(n==='clientes-especiais')carregarVip();if(n==='bloqueados')carregarBloq();if(n==='entrega'){carregarFaixas();initMapa();}if(n==='configuracoes')carregarCfg();if(n==='ausencia')carregarAus()}
 
 // ===== CARDÁPIO UNIFICADO =====
 async function carregarCardapioUnificado() {
   try {
-    const [cats, produtos] = await Promise.all([api('/api/categorias'), api('/api/produtos')]);
+    const [cats, produtos, cfg] = await Promise.all([api('/api/categorias'), api('/api/produtos'), api('/api/configuracoes')]); if(cfg) CONFIG_GERAL = cfg;
     const container = document.getElementById('cardapio-unificado');
 
     // Popula select de categoria no modal de produto
@@ -715,7 +718,7 @@ async function carregarCardapioUnificado() {
         <div class="cat-secao-header" onclick="toggleCatSecao(${cat.id})">
           <div>
             <div class="cat-secao-titulo">
-              ${status} ${cat.nome}
+              ${status} ${cat.nome} <span style="font-size:10px;color:var(--g);font-family:'DM Sans',sans-serif;font-weight:400">#${cat.ordem||0}</span>
               <span style="font-size:10px;color:var(--g);font-family:'DM Sans',sans-serif;font-weight:400">(${prods.length} produto${prods.length!==1?'s':''})</span>
             </div>
             <div class="cat-secao-info">
@@ -727,7 +730,7 @@ async function carregarCardapioUnificado() {
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <div onclick="event.stopPropagation();tgCat(${cat.id},${!cat.disponivel})" class="tmini"><div class="tm ${cat.disponivel?'on':''}"></div></div>
-            <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();editCat(${cat.id})">✏️</button>
+            <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();moverCategoria(${cat.id}, -1)">↑</button><button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();moverCategoria(${cat.id}, 1)">↓</button><button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();editCat(${cat.id})">✏️</button>
             <button class="btn bc" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();abrirProdutoCat(${cat.id},'${cat.nome.replace(/'/g,"\\'")}')">+ Produto</button>
             <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="event.stopPropagation();deletarCategoria(${cat.id},'${cat.nome.replace(/'/g,"\\'")}')">🗑️</button>
             <span class="cat-chevron ${categoriasAbertas.has(String(cat.id))?'aberto':''}" id="chev-${cat.id}">▼</span>
@@ -789,7 +792,7 @@ function renderProdCard(p, cat) {
   return `<div class="pc ${!p.disponivel?'off':''}">
     <div class="pim">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}" loading="lazy">`:'🍞'}</div>
     <div class="pb">
-      <div class="pnom">${p.destaque?'⭐ ':''}${p.nome}</div>
+      <div class="pnom">${p.destaque?'⭐ ':''}${p.nome}</div><div style="font-size:10px;color:var(--g);margin:2px 0 4px">Ordem: ${p.ordem||0}</div>
       ${p.descricao?`<div class="pdsc">${p.descricao}</div>`:''}
       <div class="ppr">R$ ${Number(p.preco).toFixed(2)} <span class="pun">/ ${p.unidade}</span></div>
       <div class="ptags">
@@ -801,9 +804,9 @@ function renderProdCard(p, cat) {
       <div class="pgroup">
         <div class="plabel">Tipo de pedido</div>
         <div class="pchips">
-          <button class="pchip ${tipo==='ambos'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'ambos')">📅⚡ Ambos</button>
-          <button class="pchip ${tipo==='agendamento'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'agendamento')">📅 Agendamento</button>
-          <button class="pchip ${tipo==='hora'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'hora')">⚡ Na hora</button>
+          <button class="pchip ${tipo==='ambos'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'ambos', ${cat?.id||'null'})">📅⚡ Ambos</button>
+          <button class="pchip ${tipo==='agendamento'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'agendamento', ${cat?.id||'null'})">📅 Agendamento</button>
+          <button class="pchip ${tipo==='hora'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'hora', ${cat?.id||'null'})">⚡ Na hora</button>
         </div>
       </div>
       <div class="pgroup">
@@ -811,7 +814,7 @@ function renderProdCard(p, cat) {
         <div class="pchips">
           <button class="pchip ${p.permite_delivery!==false?'on':'warn'}" onclick="toggleCanalProduto(event, ${p.id}, 'delivery', ${p.permite_delivery!==false?'false':'true'})">🛵 Delivery</button>
           <button class="pchip ${p.permite_retirada!==false?'on':'warn'}" onclick="toggleCanalProduto(event, ${p.id}, 'retirada', ${p.permite_retirada!==false?'false':'true'})">🏪 Retirada</button>
-          <button class="pchip ${p.permite_salao?'on':'warn'}" onclick="toggleCanalProduto(event, ${p.id}, 'salao', ${p.permite_salao?'false':'true'})">🍽️ Salão</button>
+          <button class="pchip ${p.permite_salao?'on':'warn'}" onclick="toggleCanalProduto(event, ${p.id}, 'salao', ${p.permite_salao?'false':'true'}, ${cat?.id||'null'})">🍽️ Salão</button>
         </div>
       </div>
     </div>
@@ -831,6 +834,7 @@ function tDia(b){b.classList.toggle('on')}
 function tCanal(b){b.classList.toggle('on')}
 
 async function carregarLogo(){try{const c=await api('/api/configuracoes');if(!c)return;const url=c.logo_base64||c.logo_url;const nome=c.logo_nome||'Godoy';document.getElementById('logo-nome').textContent=nome;if(url){const img=document.getElementById('logo-img');img.src=url;img.style.display='block';img.onerror=()=>img.style.display='none';const prev=document.getElementById('logo-prev');prev.src=url;prev.style.display='block';document.getElementById('logo-drop-txt').style.display='none'}}catch(e){}}
+async function carregarCfgSilencioso(){try{const c=await api('/api/configuracoes');if(c)CONFIG_GERAL=c;}catch(e){}}
 
 // ===== ATENDIMENTO =====
 async function checarAtendimento(){try{const r=await api('/api/atendimento-pendente');if(!r)return;if(r.length>0){document.getElementById('pa-lista').innerHTML=r.map(x=>`<div class="pa-item"><div style="font-weight:500;font-size:11px">📱 ${x.telefone}</div><div style="font-size:10px;color:var(--g)">${x.ultima_mensagem||x.itens||'Aguardando'}</div><button class="btn bv" style="margin-top:4px;width:100%;font-size:10px" onclick="liberarAtend('${x.telefone}')">✓ Liberar</button></div>`).join('');document.getElementById('popup-atend').classList.add('show')}else{document.getElementById('popup-atend').classList.remove('show')}}catch(e){}}
@@ -1052,12 +1056,14 @@ async function delCombo(id,n){if(!confirm(`Remover "${n}"?`))return;try{await ap
 // ===== PRODUTOS =====
 function setFP(c){filtroCatProd=c;carregarCardapioUnificado()}
 async function tgProd(id,d){try{await api(`/api/produtos/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'✅':'⛔');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-async function setTipoPedido(ev,id,tipo){ev.stopPropagation();try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({tipo_pedido:tipo})});nt('✅ Tipo atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-async function toggleCanalProduto(ev,id,canal,valor){ev.stopPropagation();const map={delivery:'permite_delivery',retirada:'permite_retirada',salao:'permite_salao'};try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({[map[canal]]:valor})});nt('✅ Canal atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-async function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;document.getElementById('pp-comp-wrap').style.display=p?.id?'block':'none';document.getElementById('pp-comp-grupos').innerHTML=p?.id?'<div style="font-size:11px;color:var(--g)">Carregando complementos...</div>':'<div style="font-size:11px;color:var(--g)">Salve o produto para cadastrar complementos.</div>';document.getElementById('mo-prod').classList.add('on');if(p?.id){await carregarCompInline();await carregarProdutosParaCopiar(p.id);}}
+async function setTipoPedido(ev,id,tipo,catId=null){ev.stopPropagation();if(catId!==null)categoriasAbertas.add(String(catId));try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({tipo_pedido:tipo})});nt('✅ Tipo atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function toggleCanalProduto(ev,id,canal,valor,catId=null){ev.stopPropagation();if(catId!==null)categoriasAbertas.add(String(catId));const map={delivery:'permite_delivery',retirada:'permite_retirada',salao:'permite_salao'};try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({[map[canal]]:valor})});nt('✅ Canal atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function moverProduto(id,direcao,catId=null){if(catId!==null)categoriasAbertas.add(String(catId));try{const ps=await api('/api/produtos');const atual=ps?.find(x=>x.id===id);if(!atual)return;const nova=parseInt(atual.ordem||0)+(direcao*10);await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({ordem:nova})});nt('✅ Ordem do produto atualizada!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function moverCategoria(id,direcao){categoriasAbertas.add(String(id));try{const cs=await api('/api/categorias');const atual=cs?.find(x=>x.id===id);if(!atual)return;const nova=parseInt(atual.ordem||0)+(direcao*10);await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify({ordem:nova})});nt('✅ Ordem da categoria atualizada!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-ord').value=p?.ordem||0;document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;document.getElementById('pp-comp-wrap').style.display=p?.id?'block':'none';document.getElementById('pp-comp-grupos').innerHTML=p?.id?'<div style="font-size:11px;color:var(--g)">Carregando complementos...</div>':'<div style="font-size:11px;color:var(--g)">Salve o produto para cadastrar complementos.</div>';document.getElementById('mo-prod').classList.add('on');if(p?.id){await carregarCompInline();await carregarProdutosParaCopiar(p.id);}}
 async function editProd(id){const ps=await api('/api/produtos');const p=ps?.find(x=>x.id===id);if(!p)return;await abrirProduto(p);if(p.imagem_url){const img=document.getElementById('pp-prv');img.src=p.imagem_url;img.style.display='block'}}
 function prevImg(inp,previewId){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(previewId);img.src=e.target.result;img.style.display='block';const b64=e.target.result.split(',')[1];const tp=f.type;if(previewId==='pp-prv'){prodImgB64=b64;prodImgTp=tp}else{cbImgB64=b64;cbImgTp=tp}};r.readAsDataURL(f)}
-async function saveProd(){const id=document.getElementById('pp-id').value;const c=document.querySelectorAll('#pp-canais .canal');const cSel=document.getElementById('pp-cat');const d={nome:document.getElementById('pp-nom').value,categoria:cSel.options[cSel.selectedIndex]?.text||'',categoria_id:cSel.value||null,descricao:document.getElementById('pp-dsc').value,preco:document.getElementById('pp-pre').value,unidade:document.getElementById('pp-uni').value,tipo_pedido:document.getElementById('pp-tip').value,permite_delivery:c[0].classList.contains('on'),permite_retirada:c[1].classList.contains('on'),permite_salao:c[2].classList.contains('on'),destaque:document.getElementById('pp-dest').checked};if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);if(d.categoria_id)categoriasAbertas.add(String(d.categoria_id));try{let pid=id;if(id)await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify(d)});else{const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(d)});pid=r?.produto?.id}if(prodImgB64&&pid)await api(`/api/produtos/${pid}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:prodImgB64,tipo:prodImgTp})});fMo();nt('✅ Produto salvo!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function saveProd(){const id=document.getElementById('pp-id').value;const c=document.querySelectorAll('#pp-canais .canal');const cSel=document.getElementById('pp-cat');const d={nome:document.getElementById('pp-nom').value,categoria:cSel.options[cSel.selectedIndex]?.text||'',categoria_id:cSel.value||null,descricao:document.getElementById('pp-dsc').value,preco:document.getElementById('pp-pre').value,unidade:document.getElementById('pp-uni').value,tipo_pedido:document.getElementById('pp-tip').value,permite_delivery:c[0].classList.contains('on'),permite_retirada:c[1].classList.contains('on'),permite_salao:c[2].classList.contains('on'),destaque:document.getElementById('pp-dest').checked,ordem:parseInt(document.getElementById('pp-ord').value||'0')};if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);if(d.categoria_id)categoriasAbertas.add(String(d.categoria_id));try{let pid=id;if(id)await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify(d)});else{const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(d)});pid=r?.produto?.id}if(prodImgB64&&pid)await api(`/api/produtos/${pid}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:prodImgB64,tipo:prodImgTp})});fMo();nt('✅ Produto salvo!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function delProd(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/produtos/${id}`,{method:'DELETE'});nt('Removido.');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 
 // ===== COMPLEMENTOS =====
@@ -1071,9 +1077,9 @@ async function delItem(id){try{await api(`/api/complementos/itens/${id}`,{method
 
 // ===== CATEGORIAS =====
 async function tgCat(id,d){try{await api(`/api/categorias/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'🟢':'🔴');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-function abrirCategoria(c=null){document.getElementById('mct-id').value=c?.id||'';document.getElementById('mct-tt').textContent=c?'✏️ Editar':'📂 Nova Categoria';document.getElementById('mct-nom').value=c?.nome||'';document.getElementById('mct-dsc').value=c?.descricao||'';document.getElementById('mct-hi').value=c?.horario_inicio?.slice(0,5)||'06:00';document.getElementById('mct-hf').value=c?.horario_fim?.slice(0,5)||'20:00';const diasRaw=c?.dias_semana;const dias=Array.isArray(diasRaw)?diasRaw:String(diasRaw||'{0,1,2,3,4,5,6}').replace(/[{}]/g,'').split(',').map(Number).filter(n=>!isNaN(n));document.querySelectorAll('#mct-dias .dia').forEach(b=>b.classList.toggle('on',dias.includes(parseInt(b.dataset.d))));const cans=document.querySelectorAll('#mct-canais .canal');cans[0].classList.toggle('on',c?.permite_delivery!==false);cans[1].classList.toggle('on',c?.permite_retirada!==false);cans[2].classList.toggle('on',c?.permite_salao||false);document.getElementById('mo-cat').classList.add('on')}
+function abrirCategoria(c=null){const cfgIni=normTime(CONFIG_GERAL.horario_inicio_whatsapp,'06:00');const cfgFim=normTime(CONFIG_GERAL.horario_fim_whatsapp,'20:00');document.getElementById('mct-id').value=c?.id||'';document.getElementById('mct-tt').textContent=c?'✏️ Editar':'📂 Nova Categoria';document.getElementById('mct-nom').value=c?.nome||'';document.getElementById('mct-dsc').value=c?.descricao||'';document.getElementById('mct-hi').min=cfgIni;document.getElementById('mct-hi').max=cfgFim;document.getElementById('mct-hf').min=cfgIni;document.getElementById('mct-hf').max=cfgFim;document.getElementById('mct-hi').value=clampHorario(c?.horario_inicio?.slice(0,5)||cfgIni,cfgIni,cfgFim);document.getElementById('mct-hf').value=clampHorario(c?.horario_fim?.slice(0,5)||cfgFim,cfgIni,cfgFim);document.getElementById('mct-ord').value=c?.ordem||0;const diasRaw=c?.dias_semana;const dias=Array.isArray(diasRaw)?diasRaw:String(diasRaw||'{0,1,2,3,4,5,6}').replace(/[{}]/g,'').split(',').map(Number).filter(n=>!isNaN(n));document.querySelectorAll('#mct-dias .dia').forEach(b=>b.classList.toggle('on',dias.includes(parseInt(b.dataset.d))));const cans=document.querySelectorAll('#mct-canais .canal');cans[0].classList.toggle('on',c?.permite_delivery!==false);cans[1].classList.toggle('on',c?.permite_retirada!==false);cans[2].classList.toggle('on',c?.permite_salao||false);document.getElementById('mo-cat').classList.add('on')}
 async function editCat(id){const c=await api('/api/categorias');const x=c?.find(y=>y.id===id);if(x)abrirCategoria(x)}
-async function saveCat(){const id=document.getElementById('mct-id').value;const dias=[];document.querySelectorAll('#mct-dias .dia.on').forEach(b=>dias.push(parseInt(b.dataset.d)));const cans=document.querySelectorAll('#mct-canais .canal');const d={nome:document.getElementById('mct-nom').value,descricao:document.getElementById('mct-dsc').value,horario_inicio:document.getElementById('mct-hi').value,horario_fim:document.getElementById('mct-hf').value,dias_semana:'{'+dias.join(',')+'}',permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on')};if(!d.nome)return nt('Informe o nome',true);try{if(id)await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify(d)});else await api('/api/categorias',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Categoria salva!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function saveCat(){const id=document.getElementById('mct-id').value;const dias=[];document.querySelectorAll('#mct-dias .dia.on').forEach(b=>dias.push(parseInt(b.dataset.d)));const cans=document.querySelectorAll('#mct-canais .canal');const cfgIni=normTime(CONFIG_GERAL.horario_inicio_whatsapp,'06:00');const cfgFim=normTime(CONFIG_GERAL.horario_fim_whatsapp,'20:00');const hi=clampHorario(document.getElementById('mct-hi').value,cfgIni,cfgFim);const hf=clampHorario(document.getElementById('mct-hf').value,cfgIni,cfgFim);const d={nome:document.getElementById('mct-nom').value,descricao:document.getElementById('mct-dsc').value,horario_inicio:hi,horario_fim:hf,dias_semana:'{'+dias.join(',')+'}',permite_delivery:cans[0].classList.contains('on'),permite_retirada:cans[1].classList.contains('on'),permite_salao:cans[2].classList.contains('on'),ordem:parseInt(document.getElementById('mct-ord').value||'0')};if(!d.nome)return nt('Informe o nome',true);try{if(id)await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify(d)});else await api('/api/categorias',{method:'POST',body:JSON.stringify(d)});fMo();nt('✅ Categoria salva!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function deletarCategoria(id, n) {
   if (!confirm(`⚠️ Excluir categoria "${n}"?\n\nTodos os produtos desta categoria serão excluídos junto.\n\nEsta ação não pode ser desfeita.`)) return;
   try {
