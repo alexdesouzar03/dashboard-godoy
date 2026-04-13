@@ -99,19 +99,40 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/pedidos', async (req, res) => {
   try {
     const { data, busca, ordenar, tipo_kanban } = req.query;
-    let q = "SELECT * FROM pedidos WHERE arquivado=FALSE";
+    let q = `SELECT * FROM pedidos WHERE arquivado=FALSE AND (
+      status <> 'entregue'
+      OR id IN (
+        SELECT pedido_id FROM historico_pedidos
+        WHERE acao='status' AND descricao ILIKE '%entregue%'
+          AND criado_em >= NOW() - INTERVAL '24 hours'
+      )
+      OR criado_em >= NOW() - INTERVAL '24 hours'
+    )`;
     let p = []; let i = 1;
     if (data) { q+=` AND DATE(criado_em AT TIME ZONE 'America/Sao_Paulo')=$${i++}`; p.push(data); }
     if (busca) { q+=` AND (nome_cliente ILIKE $${i} OR telefone ILIKE $${i} OR itens ILIKE $${i})`; p.push(`%${busca}%`); i++; }
-    // Separação explícita pelo campo tipo_kanban
-    if (tipo_kanban === 'dia') {
-      q += ` AND tipo_kanban = 'imediato'`;
-    } else if (tipo_kanban === 'agendados') {
-      q += ` AND tipo_kanban = 'agendado'`;
-    }
+    if (tipo_kanban === 'dia') q += ` AND tipo_kanban = 'imediato'`;
+    else if (tipo_kanban === 'agendados') q += ` AND tipo_kanban = 'agendado'`;
     q += tipo_kanban === 'agendados' ? ' ORDER BY data_agendamento ASC NULLS LAST, criado_em DESC' : ' ORDER BY criado_em DESC';
     q += ' LIMIT 300';
     res.json((await pool.query(q,p)).rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/pedidos/historico-geral', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT * FROM pedidos
+      WHERE arquivado=TRUE
+         OR (status='entregue' AND id NOT IN (
+              SELECT pedido_id FROM historico_pedidos
+              WHERE acao='status' AND descricao ILIKE '%entregue%'
+                AND criado_em >= NOW() - INTERVAL '24 hours'
+          ) AND criado_em < NOW() - INTERVAL '24 hours')
+      ORDER BY COALESCE(arquivado_em, criado_em) DESC
+      LIMIT 300
+    `);
+    res.json(r.rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
