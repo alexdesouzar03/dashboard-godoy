@@ -109,6 +109,12 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
 .ptags{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
 .ptag{font-size:9px;padding:1px 5px;border-radius:100px;background:var(--cr);color:var(--g);font-weight:500}
 .ptag.on{background:#d1e7dd;color:#0a3622}
+.pgroup{margin-top:7px}
+.plabel{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--g);margin-bottom:4px;font-weight:600}
+.pchips{display:flex;gap:4px;flex-wrap:wrap}
+.pchip{font-size:9px;padding:3px 7px;border-radius:100px;border:1px solid rgba(61,31,10,.14);background:#fff;color:var(--g);cursor:pointer;transition:all .2s;font-weight:500}
+.pchip.on{background:var(--m);border-color:var(--m);color:#fff}
+.pchip.warn{background:#f8d7da;border-color:#f8d7da;color:#842029}
 .pft{padding:6px 10px;border-top:1px solid rgba(61,31,10,.06);display:flex;gap:4px;justify-content:space-between;align-items:center}
 .tmini{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;font-weight:500}
 .tm{width:28px;height:16px;background:#ddd;border-radius:100px;position:relative;transition:background .3s;flex-shrink:0}
@@ -506,7 +512,7 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
     <div class="fg" style="margin-bottom:6px"><label>Disponível para</label><div class="canais" id="pp-canais"><div class="canal on" data-c="delivery" onclick="tCanal(this)">🛵 Delivery</div><div class="canal on" data-c="retirada" onclick="tCanal(this)">🏪 Retirada</div><div class="canal" data-c="salao" onclick="tCanal(this)">🍽️ Salão</div></div></div>
     <div class="fg" style="margin-bottom:6px"><label>Imagem</label><input type="file" id="pp-img" accept="image/*" onchange="prevImg(this,'pp-prv')" style="font-size:10px;padding:3px"><img id="pp-prv" style="width:100%;height:75px;object-fit:cover;border-radius:7px;margin-top:4px;display:none"></div>
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><input type="checkbox" id="pp-dest" style="width:auto"><label for="pp-dest" style="font-size:11px;cursor:pointer">⭐ Produto em destaque</label></div>
-    <div class="mft"><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="saveProd()">💾 Salvar</button></div>
+    <div class="mft"><button class="btn bout" id="pp-comp-btn" style="display:none" onclick="abrirCompDoProduto()">🧩 Complementos</button><button class="btn bg" onclick="fMo()">Cancelar</button><button class="btn bv" onclick="saveProd()">💾 Salvar</button></div>
   </div>
 </div>
 
@@ -752,10 +758,12 @@ function abrirProdutoCat(catId, catNome) {
 }
 
 function renderProdCard(p, cat) {
-  // Aplica restrição da categoria
   const delOk = p.permite_delivery && (cat ? cat.permite_delivery : true);
   const retOk = p.permite_retirada && (cat ? cat.permite_retirada : true);
   const salOk = p.permite_salao && (cat ? cat.permite_salao : false);
+  const tipo = p.tipo_pedido || 'ambos';
+
+  const esc = (v='') => String(v).replace(/'/g,"\'");
 
   return `<div class="pc ${!p.disponivel?'off':''}">
     <div class="pim">${p.imagem_url?`<img src="${p.imagem_url}" alt="${p.nome}" loading="lazy">`:'🍞'}</div>
@@ -764,19 +772,33 @@ function renderProdCard(p, cat) {
       ${p.descricao?`<div class="pdsc">${p.descricao}</div>`:''}
       <div class="ppr">R$ ${Number(p.preco).toFixed(2)} <span class="pun">/ ${p.unidade}</span></div>
       <div class="ptags">
-        <span class="ptag">${p.tipo_pedido==='agendamento'?'📅':p.tipo_pedido==='hora'?'⚡':'📅⚡'}</span>
         ${delOk?'<span class="ptag on">🛵</span>':'<span class="ptag" style="background:#f8d7da;color:#842029">🚫🛵</span>'}
         ${retOk?'<span class="ptag on">🏪</span>':''}
         ${salOk?'<span class="ptag on">🍽️</span>':''}
         ${p.total_vendas>0?`<span class="ptag">🔥${p.total_vendas}</span>`:''}
+      </div>
+      <div class="pgroup">
+        <div class="plabel">Tipo de pedido</div>
+        <div class="pchips">
+          <button class="pchip ${tipo==='ambos'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'ambos')">📅⚡ Ambos</button>
+          <button class="pchip ${tipo==='agendamento'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'agendamento')">📅 Agendamento</button>
+          <button class="pchip ${tipo==='hora'?'on':''}" onclick="setTipoPedido(event, ${p.id}, 'hora')">⚡ Na hora</button>
+        </div>
+      </div>
+      <div class="pgroup">
+        <div class="plabel">Disponível para</div>
+        <div class="pchips">
+          <button class="pchip ${p.permite_delivery!==false?'on':'warn'}" onclick="toggleCanalProduto(event, ${p.id}, 'delivery', ${p.permite_delivery!==false?'false':'true'})">🛵 Delivery</button>
+          <button class="pchip ${p.permite_retirada!==false?'on':'warn'}" onclick="toggleCanalProduto(event, ${p.id}, 'retirada', ${p.permite_retirada!==false?'false':'true'})">🏪 Retirada</button>
+          <button class="pchip ${p.permite_salao?'on':'warn'}" onclick="toggleCanalProduto(event, ${p.id}, 'salao', ${p.permite_salao?'false':'true'})">🍽️ Salão</button>
+        </div>
       </div>
     </div>
     <div class="pft">
       <div class="tmini" onclick="tgProd(${p.id},${!p.disponivel})"><div class="tm ${p.disponivel?'on':''}"></div><span>${p.disponivel?'Disp.':'Indisp.'}</span></div>
       <div style="display:flex;gap:3px">
         <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editProd(${p.id})">✏️</button>
-        <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="abrirComp(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🧩</button>
-        <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delProd(${p.id},'${p.nome.replace(/'/g,"\\'")}')">🗑️</button>
+        <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delProd(${p.id},'${esc(p.nome)}')">🗑️</button>
       </div>
     </div>
   </div>`;
@@ -1009,13 +1031,16 @@ async function delCombo(id,n){if(!confirm(`Remover "${n}"?`))return;try{await ap
 // ===== PRODUTOS =====
 function setFP(c){filtroCatProd=c;carregarCardapioUnificado()}
 async function tgProd(id,d){try{await api(`/api/produtos/${id}/disponibilidade`,{method:'PATCH',body:JSON.stringify({disponivel:d})});nt(d?'✅':'⛔');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;document.getElementById('mo-prod').classList.add('on')}
+async function setTipoPedido(ev,id,tipo){ev.stopPropagation();try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({tipo_pedido:tipo})});nt('✅ Tipo atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function toggleCanalProduto(ev,id,canal,valor){ev.stopPropagation();const map={delivery:'permite_delivery',retirada:'permite_retirada',salao:'permite_salao'};try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({[map[canal]]:valor})});nt('✅ Canal atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;const compBtn=document.getElementById('pp-comp-btn');compBtn.style.display=p?.id?'inline-flex':'none';compBtn.dataset.pid=p?.id||'';compBtn.dataset.pnome=p?.nome||'';document.getElementById('mo-prod').classList.add('on')}
 async function editProd(id){const ps=await api('/api/produtos');const p=ps?.find(x=>x.id===id);if(!p)return;abrirProduto(p);if(p.imagem_url){const img=document.getElementById('pp-prv');img.src=p.imagem_url;img.style.display='block'}}
 function prevImg(inp,previewId){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(previewId);img.src=e.target.result;img.style.display='block';const b64=e.target.result.split(',')[1];const tp=f.type;if(previewId==='pp-prv'){prodImgB64=b64;prodImgTp=tp}else{cbImgB64=b64;cbImgTp=tp}};r.readAsDataURL(f)}
 async function saveProd(){const id=document.getElementById('pp-id').value;const c=document.querySelectorAll('#pp-canais .canal');const cSel=document.getElementById('pp-cat');const d={nome:document.getElementById('pp-nom').value,categoria:cSel.options[cSel.selectedIndex]?.text||'',categoria_id:cSel.value||null,descricao:document.getElementById('pp-dsc').value,preco:document.getElementById('pp-pre').value,unidade:document.getElementById('pp-uni').value,tipo_pedido:document.getElementById('pp-tip').value,permite_delivery:c[0].classList.contains('on'),permite_retirada:c[1].classList.contains('on'),permite_salao:c[2].classList.contains('on'),destaque:document.getElementById('pp-dest').checked};if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);try{let pid=id;if(id)await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify(d)});else{const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(d)});pid=r?.produto?.id}if(prodImgB64&&pid)await api(`/api/produtos/${pid}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:prodImgB64,tipo:prodImgTp})});fMo();nt('✅ Produto salvo!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function delProd(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/produtos/${id}`,{method:'DELETE'});nt('Removido.');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 
 // ===== COMPLEMENTOS =====
+function abrirCompDoProduto(){const btn=document.getElementById('pp-comp-btn');const pid=btn.dataset.pid;const pnome=btn.dataset.pnome;if(!pid)return nt('Salve o produto antes de cadastrar complementos',true);abrirComp(parseInt(pid), pnome);}
 async function abrirComp(pid,pnom){document.getElementById('mc-pid').value=pid;document.getElementById('mc-pnom').textContent=pnom;await carregarComp();document.getElementById('mo-comp').classList.add('on')}
 async function carregarComp(){const pid=document.getElementById('mc-pid').value;try{const g=await api(`/api/produtos/${pid}/complementos`);const c=document.getElementById('mc-grupos');if(!(g||[]).length){c.innerHTML='<p style="font-size:11px;color:var(--g);margin-bottom:8px">Nenhum complemento.</p>';return}c.innerHTML=(g||[]).map(x=>`<div style="background:var(--cr);border-radius:8px;padding:9px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div><div style="font-size:12px;font-weight:500">${x.nome}</div><div style="font-size:10px;color:var(--g)">${x.obrigatorio?'Obrigatório':'Opcional'} · ${x.min_selecao}-${x.max_selecao}</div></div><button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delGrupo(${x.id})">🗑️</button></div><div style="display:grid;gap:4px;margin-bottom:6px">${(x.itens||[]).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:6px;padding:5px 8px"><span style="font-size:11px">${i.nome}${i.preco_adicional>0?' <span style="color:var(--v)">+R$ '+Number(i.preco_adicional).toFixed(2)+'</span>':''}</span><button class="btn br" style="font-size:9px;padding:2px 5px" onclick="delItem(${i.id})">✕</button></div>`).join('')}</div><div style="display:flex;gap:5px"><input id="ni-n-${x.id}" placeholder="Novo item..." style="flex:1;padding:5px 7px;border:1px solid rgba(61,31,10,.15);border-radius:6px;font-size:11px;background:#fff;outline:none"><input id="ni-p-${x.id}" type="number" placeholder="+R$" step="0.50" style="width:55px;padding:5px 7px;border:1px solid rgba(61,31,10,.15);border-radius:6px;font-size:11px;background:#fff;outline:none"><button class="btn bc" style="font-size:10px;padding:4px 7px" onclick="addItem(${x.id})">+</button></div></div>`).join('')}catch(e){}}
 async function addGrupo(){const pid=document.getElementById('mc-pid').value;const n=document.getElementById('ng-nom').value;if(!n)return nt('Informe o nome',true);const d={produto_id:parseInt(pid),nome:n,obrigatorio:document.getElementById('ng-obr').value==='true',min_selecao:parseInt(document.getElementById('ng-min').value)||0,max_selecao:parseInt(document.getElementById('ng-max').value)||1};try{await api('/api/complementos/grupos',{method:'POST',body:JSON.stringify(d)});document.getElementById('ng-nom').value='';nt('✅');await carregarComp()}catch(e){nt('Erro',true)}}
