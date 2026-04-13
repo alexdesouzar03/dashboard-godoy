@@ -218,7 +218,8 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
 <div class="tabs">
   <button class="tb on" onclick="mudarTab('pedidos',this)">📋 Pedidos</button>
   <button class="tb" onclick="mudarTab('cardapio',this)">🍞 Cardápio</button>
-    <button class="tb" onclick="mudarTab('entregadores',this)">🛵 Entregadores</button>
+  <button class="tb" onclick="mudarTab('combos',this)">🎁 Combos</button>
+  <button class="tb" onclick="mudarTab('entregadores',this)">🛵 Entregadores</button>
   <button class="tb" onclick="mudarTab('pontos',this)">⭐ Pontos</button>
   <button class="tb" onclick="mudarTab('relatorios',this)">📊 Relatórios</button>
   <button class="tb" onclick="mudarTab('clientes-especiais',this)">💎 Especiais</button>
@@ -237,6 +238,7 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
   <div class="kanban-header">
     <input type="date" id="f-data" style="padding:5px 8px;border:1.5px solid rgba(61,31,10,.15);border-radius:7px;font-size:11px;background:#fff;outline:none;color:var(--m)" onchange="carregarKanban()">
     <input type="text" id="f-busca" placeholder="🔍 Buscar..." style="padding:5px 8px;border:1.5px solid rgba(61,31,10,.15);border-radius:7px;font-size:11px;background:#fff;outline:none;color:var(--m);width:140px" oninput="filtrarKanban()">
+    <button class="btn bout" onclick="abrirHistoricoPedidos()">🕘 Histórico</button>
   </div>
   <div class="kw"><div class="kb" id="kb"></div></div>
 </div>
@@ -246,18 +248,22 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
   <div class="gc">
     <div class="gcard">
       <div class="gtt">🍞 Cardápio
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn bg" onclick="ordenarCategorias('az')">Cat A-Z</button>
+          <button class="btn bg" onclick="ordenarCategorias('za')">Cat Z-A</button>
+          <button class="btn bg" onclick="ordenarProdutos('az')">Prod A-Z</button>
+          <button class="btn bg" onclick="ordenarProdutos('za')">Prod Z-A</button>
           <button class="btn bc" onclick="abrirCategoria()">+ Categoria</button>
           <button class="btn bout" onclick="abrirProduto()">+ Produto</button>
         </div>
       </div>
-      <div class="gdesc">Kits festa agora devem ser cadastrados como produto/categoria no cardápio. A aba de combos ficou ocultada no painel. Horários respeitam as configurações gerais e a ordem pode ser ajustada pelos controles rápidos ou manualmente.</div><div id="cardapio-unificado"></div>
+      <div id="cardapio-unificado"></div>
     </div>
   </div>
 </div>
 
 <!-- COMBOS -->
-<div id="tab-combos" class="tc" style="display:none">
+<div id="tab-combos" class="tc">
   <div class="gc">
     <div class="gcard">
       <div class="gtt">🎁 Combos <button class="btn bc" onclick="abrirCombo()">+ Novo Combo</button></div>
@@ -595,6 +601,15 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
   </div>
 </div>
 
+
+<div class="mo" id="mo-hist-pedidos">
+  <div class="md" style="max-width:760px">
+    <div class="mtt">🕘 Histórico de Pedidos</div>
+    <div id="hist-pedidos-wrap" style="display:grid;gap:8px;max-height:70vh;overflow:auto"></div>
+    <div class="mft"><button class="btn bg" onclick="fMo()">Fechar</button></div>
+  </div>
+</div>
+
 <!-- POP-UP ATENDIMENTO -->
 <div class="popup-atend" id="popup-atend">
   <div class="pa-tt">👋 Atendimento humano pendente</div>
@@ -688,25 +703,44 @@ function mudarTab(n,b){document.querySelectorAll('.tb').forEach(x=>x.classList.r
 // ===== CARDÁPIO UNIFICADO =====
 async function carregarCardapioUnificado() {
   try {
-    const [cats, produtos, cfg] = await Promise.all([api('/api/categorias'), api('/api/produtos'), api('/api/configuracoes')]); if(cfg) CONFIG_GERAL = cfg;
+    const [catsRaw, produtosRaw, cfg] = await Promise.all([api('/api/categorias'), api('/api/produtos'), api('/api/configuracoes')]); if(cfg) CONFIG_GERAL = cfg;
+    const cats = [...(catsRaw||[])].sort((a,b)=>{
+      const ao = Number(a.ordem||0), bo = Number(b.ordem||0);
+      if (ao !== bo) return ao - bo;
+      return (a.nome||'').localeCompare((b.nome||''), 'pt-BR');
+    });
+    const produtos = [...(produtosRaw||[])].sort((a,b)=>{
+      const ac = Number(a.categoria_id||0), bc = Number(b.categoria_id||0);
+      if (ac !== bc) return ac - bc;
+      const ao = Number(a.ordem||0), bo = Number(b.ordem||0);
+      if (ao !== bo) return ao - bo;
+      return (a.nome||'').localeCompare((b.nome||''), 'pt-BR');
+    });
     const container = document.getElementById('cardapio-unificado');
 
     // Popula select de categoria no modal de produto
     const sel = document.getElementById('pp-cat');
-    sel.innerHTML = '<option value="">Selecione...</option>' + (cats||[]).map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+    sel.innerHTML = '<option value="">Selecione...</option>' + cats.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
 
     // Agrupa produtos por categoria_id
     const prodsPorCat = {};
-    (produtos||[]).forEach(p => {
+    produtos.forEach(p => {
       const cid = p.categoria_id || 'sem_cat';
       if (!prodsPorCat[cid]) prodsPorCat[cid] = [];
       prodsPorCat[cid].push(p);
+    });
+    Object.keys(prodsPorCat).forEach(cid => {
+      prodsPorCat[cid].sort((a,b)=>{
+        const ao = Number(a.ordem||0), bo = Number(b.ordem||0);
+        if (ao !== bo) return ao - bo;
+        return (a.nome||'').localeCompare((b.nome||''), 'pt-BR');
+      });
     });
 
     // Produtos sem categoria
     const semCat = prodsPorCat['sem_cat'] || [];
 
-    let html = (cats||[]).map(cat => {
+    let html = cats.map(cat => {
       const prods = prodsPorCat[cat.id] || [];
       const diasRaw = cat.dias_semana; const diasArr = Array.isArray(diasRaw) ? diasRaw : String(diasRaw||'{0,1,2,3,4,5,6}').replace(/[{}]/g,'').split(',').map(Number).filter(n=>!isNaN(n)); const dias = diasArr.map(d => ['D','S','T','Q','Q','S','S'][d]||'?').join('');
       const canais = [cat.permite_delivery?'🛵':'',cat.permite_retirada?'🏪':'',cat.permite_salao?'🍽️':''].filter(Boolean).join(' ');
@@ -1052,6 +1086,10 @@ async function saveCombo(){
 
 async function editCombo(id){const cs=await api('/api/combos');const cb=cs?.find(x=>x.id===id);if(cb)abrirCombo(cb)}
 async function delCombo(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/combos/${id}`,{method:'DELETE'});nt('Removido.');carregarCombos()}catch(e){nt('Erro',true)}}
+
+async function ordenarCategorias(modo){try{const cs=(await api('/api/categorias'))||[];const ord=[...cs].sort((a,b)=>modo==='az'?(a.nome||'').localeCompare(b.nome||'','pt-BR'):(b.nome||'').localeCompare(a.nome||'','pt-BR'));for(let i=0;i<ord.length;i++)await api(`/api/categorias/${ord[i].id}`,{method:'PATCH',body:JSON.stringify({ordem:(i+1)*10})});nt('✅ Categorias reordenadas!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function ordenarProdutos(modo){try{const ps=(await api('/api/produtos'))||[];const ord=[...ps].sort((a,b)=>modo==='az'?(a.nome||'').localeCompare(b.nome||'','pt-BR'):(b.nome||'').localeCompare(a.nome||'','pt-BR'));for(let i=0;i<ord.length;i++)await api(`/api/produtos/${ord[i].id}`,{method:'PATCH',body:JSON.stringify({ordem:(i+1)*10})});nt('✅ Produtos reordenados!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function abrirHistoricoPedidos(){try{const itens=(await api('/api/pedidos/historico-geral'))||[];const wrap=document.getElementById('hist-pedidos-wrap');wrap.innerHTML=itens.length?itens.map(p=>`<div class="ir"><div class="in"><div class="inm">#${p.id} · ${p.nome_cliente||'Cliente'} <span style="font-size:10px;color:var(--g);font-weight:400">(${p.status||'-'})</span></div><div class="ins">${p.itens||'—'} · ${p.telefone||'—'} · ${new Date(p.criado_em).toLocaleString('pt-BR')}</div></div><div class="ia"><button class="btn bout" onclick="verHist(${p.id})">📋 Histórico</button></div></div>`).join(''):'<div style="font-size:11px;color:var(--g)">Nenhum pedido em histórico.</div>';document.getElementById('mo-hist-pedidos').classList.add('on')}catch(e){nt('Erro ao carregar histórico',true)}}
 
 // ===== PRODUTOS =====
 function setFP(c){filtroCatProd=c;carregarCardapioUnificado()}
