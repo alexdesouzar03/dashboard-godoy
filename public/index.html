@@ -856,6 +856,7 @@ function renderProdCard(p, cat) {
       <div class="tmini" onclick="tgProd(${p.id},${!p.disponivel})"><div class="tm ${p.disponivel?'on':''}"></div><span>${p.disponivel?'Disp.':'Indisp.'}</span></div>
       <div style="display:flex;gap:3px">
         <button class="btn bout" style="font-size:10px;padding:3px 7px" onclick="editProd(${p.id})">✏️</button>
+        <button class="btn bg" style="font-size:10px;padding:3px 7px" onclick="duplicateProd(${p.id}, ${cat?.id||'null'})">⧉</button>
         <button class="btn br" style="font-size:10px;padding:3px 7px" onclick="delProd(${p.id},'${esc(p.nome)}')">🗑️</button>
       </div>
     </div>
@@ -1097,9 +1098,66 @@ async function tgProd(id,d){try{await api(`/api/produtos/${id}/disponibilidade`,
 async function setTipoPedido(ev,id,tipo,catId=null){ev.stopPropagation();if(catId!==null)categoriasAbertas.add(String(catId));try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({tipo_pedido:tipo})});nt('✅ Tipo atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function toggleCanalProduto(ev,id,canal,valor,catId=null){ev.stopPropagation();if(catId!==null)categoriasAbertas.add(String(catId));const map={delivery:'permite_delivery',retirada:'permite_retirada',salao:'permite_salao'};try{await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({[map[canal]]:valor})});nt('✅ Canal atualizado!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function moverProduto(id,direcao,catId=null){if(catId!==null)categoriasAbertas.add(String(catId));try{const ps=await api('/api/produtos');const atual=ps?.find(x=>x.id===id);if(!atual)return;const nova=parseInt(atual.ordem||0)+(direcao*10);await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify({ordem:nova})});nt('✅ Ordem do produto atualizada!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
-async function moverCategoria(id,direcao){categoriasAbertas.add(String(id));try{const cs=await api('/api/categorias');const atual=cs?.find(x=>x.id===id);if(!atual)return;const nova=parseInt(atual.ordem||0)+(direcao*10);await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify({ordem:nova})});nt('✅ Ordem da categoria atualizada!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
+async function moverCategoria(id,direcao){try{const cs=await api('/api/categorias');const atual=cs?.find(x=>x.id===id);if(!atual)return;const nova=parseInt(atual.ordem||0)+(direcao*10);await api(`/api/categorias/${id}`,{method:'PATCH',body:JSON.stringify({ordem:nova})});nt('✅ Ordem da categoria atualizada!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function abrirProduto(p=null){document.getElementById('pp-id').value=p?.id||'';document.getElementById('mpr-tt').textContent=p?'✏️ Editar':'➕ Novo Produto';document.getElementById('pp-nom').value=p?.nome||'';document.getElementById('pp-cat').value=p?.categoria_id||'';document.getElementById('pp-dsc').value=p?.descricao||'';document.getElementById('pp-pre').value=p?.preco||'';document.getElementById('pp-uni').value=p?.unidade||'unidade';document.getElementById('pp-ord').value=p?.ordem||0;document.getElementById('pp-tip').value=p?.tipo_pedido||'ambos';document.getElementById('pp-dest').checked=p?.destaque||false;const c=document.querySelectorAll('#pp-canais .canal');c[0].classList.toggle('on',p?.permite_delivery!==false);c[1].classList.toggle('on',p?.permite_retirada!==false);c[2].classList.toggle('on',p?.permite_salao||false);document.getElementById('pp-prv').style.display='none';prodImgB64=null;prodImgTp=null;document.getElementById('pp-comp-wrap').style.display=p?.id?'block':'none';document.getElementById('pp-comp-grupos').innerHTML=p?.id?'<div style="font-size:11px;color:var(--g)">Carregando complementos...</div>':'<div style="font-size:11px;color:var(--g)">Salve o produto para cadastrar complementos.</div>';document.getElementById('mo-prod').classList.add('on');if(p?.id){await carregarCompInline();await carregarProdutosParaCopiar(p.id);}}
 async function editProd(id){const ps=await api('/api/produtos');const p=ps?.find(x=>x.id===id);if(!p)return;await abrirProduto(p);if(p.imagem_url){const img=document.getElementById('pp-prv');img.src=p.imagem_url;img.style.display='block'}}
+async function duplicateProd(id,catId=null){
+  if(catId!==null) categoriasAbertas.add(String(catId));
+  try{
+    const ps=await api('/api/produtos');
+    const origem=ps?.find(x=>x.id===id);
+    if(!origem) return nt('Produto não encontrado',true);
+    const payload={
+      nome:`${origem.nome} (Cópia)`,
+      categoria:origem.categoria||'',
+      categoria_id:origem.categoria_id||null,
+      descricao:origem.descricao||'',
+      preco:origem.preco,
+      unidade:origem.unidade||'unidade',
+      disponivel:origem.disponivel!==false,
+      imagem_url:origem.imagem_url||null,
+      ordem:parseInt(origem.ordem||0)+1,
+      tipo_pedido:origem.tipo_pedido||'ambos',
+      permite_delivery:origem.permite_delivery!==false,
+      permite_retirada:origem.permite_retirada!==false,
+      permite_salao:origem.permite_salao||false,
+      destaque:origem.destaque||false
+    };
+    const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(payload)});
+    const novoId=r?.produto?.id;
+    if(novoId){
+      try{
+        const grupos=await api(`/api/produtos/${id}/complementos`);
+        for(const g of (grupos||[])){
+          const rg=await api('/api/complementos/grupos',{method:'POST',body:JSON.stringify({
+            produto_id:novoId,
+            nome:g.nome,
+            descricao:g.descricao||'',
+            obrigatorio:g.obrigatorio||false,
+            min_selecao:g.min_selecao||0,
+            max_selecao:g.max_selecao||1,
+            ordem:g.ordem||0
+          })});
+          const novoGrupoId=rg?.grupo?.id;
+          if(novoGrupoId && g.itens?.length){
+            for(const item of g.itens){
+              await api('/api/complementos/itens',{method:'POST',body:JSON.stringify({
+                grupo_id:novoGrupoId,
+                nome:item.nome,
+                descricao:item.descricao||'',
+                preco_adicional:item.preco_adicional||0,
+                disponivel:item.disponivel!==false,
+                ordem:item.ordem||0
+              })});
+            }
+          }
+        }
+      }catch(e){}
+    }
+    nt('✅ Produto duplicado!');
+    carregarCardapioUnificado();
+  }catch(e){nt('Erro ao duplicar',true)}
+}
 function prevImg(inp,previewId){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(previewId);img.src=e.target.result;img.style.display='block';const b64=e.target.result.split(',')[1];const tp=f.type;if(previewId==='pp-prv'){prodImgB64=b64;prodImgTp=tp}else{cbImgB64=b64;cbImgTp=tp}};r.readAsDataURL(f)}
 async function saveProd(){const id=document.getElementById('pp-id').value;const c=document.querySelectorAll('#pp-canais .canal');const cSel=document.getElementById('pp-cat');const d={nome:document.getElementById('pp-nom').value,categoria:cSel.options[cSel.selectedIndex]?.text||'',categoria_id:cSel.value||null,descricao:document.getElementById('pp-dsc').value,preco:document.getElementById('pp-pre').value,unidade:document.getElementById('pp-uni').value,tipo_pedido:document.getElementById('pp-tip').value,permite_delivery:c[0].classList.contains('on'),permite_retirada:c[1].classList.contains('on'),permite_salao:c[2].classList.contains('on'),destaque:document.getElementById('pp-dest').checked,ordem:parseInt(document.getElementById('pp-ord').value||'0')};if(!d.nome||!d.preco)return nt('Preencha nome e preço',true);if(d.categoria_id)categoriasAbertas.add(String(d.categoria_id));try{let pid=id;if(id)await api(`/api/produtos/${id}`,{method:'PATCH',body:JSON.stringify(d)});else{const r=await api('/api/produtos',{method:'POST',body:JSON.stringify(d)});pid=r?.produto?.id}if(prodImgB64&&pid)await api(`/api/produtos/${pid}/imagem`,{method:'POST',body:JSON.stringify({imagem_base64:prodImgB64,tipo:prodImgTp})});fMo();nt('✅ Produto salvo!');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
 async function delProd(id,n){if(!confirm(`Remover "${n}"?`))return;try{await api(`/api/produtos/${id}`,{method:'DELETE'});nt('Removido.');carregarCardapioUnificado()}catch(e){nt('Erro',true)}}
