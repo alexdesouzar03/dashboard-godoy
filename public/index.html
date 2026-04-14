@@ -211,7 +211,7 @@ header{background:var(--m);padding:10px 16px;display:flex;align-items:center;jus
     <div class="usuario-info">👤 <span id="usuario-nome"></span></div>
     <a href="/portal" target="_blank" class="btn bout" style="font-size:10px">🌐 Portal</a>
     <button class="btn bout" style="font-size:10px" onclick="alterarSenha()">🔑</button>
-    <button class="btn br" style="font-size:10px" onclick="sair()">Sair</button>
+    <button class="btn bo" id="btn-atend" style="font-size:10px;display:none;position:relative" onclick="document.getElementById('popup-atend').classList.toggle('show')">👋 Atend. <span id="atend-count" style="background:#fff;color:var(--o);border-radius:50%;padding:0 4px;font-weight:700;margin-left:2px">0</span></button>
   </div>
 </header>
 
@@ -872,7 +872,7 @@ async function carregarLogo(){try{const c=await api('/api/configuracoes');if(!c)
 async function carregarCfgSilencioso(){try{const c=await api('/api/configuracoes');if(c)CONFIG_GERAL=c;}catch(e){}}
 
 // ===== ATENDIMENTO =====
-async function checarAtendimento(){try{const r=await api('/api/atendimento-pendente');if(!r)return;if(r.length>0){document.getElementById('pa-lista').innerHTML=r.map(x=>`<div class="pa-item"><div style="font-weight:500;font-size:11px">📱 ${x.telefone}</div><div style="font-size:10px;color:var(--g)">${x.ultima_mensagem||x.itens||'Aguardando'}</div><button class="btn bv" style="margin-top:4px;width:100%;font-size:10px" onclick="liberarAtend('${x.telefone}')">✓ Liberar</button></div>`).join('');document.getElementById('popup-atend').classList.add('show')}else{document.getElementById('popup-atend').classList.remove('show')}}catch(e){}}
+async function checarAtendimento(){try{const r=await api('/api/atendimento-pendente');if(!r)return;const badge=document.getElementById('btn-atend');const countEl=document.getElementById('atend-count');if(r.length>0){badge.style.display='inline-block';countEl.textContent=r.length;document.getElementById('pa-lista').innerHTML=r.map(x=>`<div class="pa-item"><div style="font-weight:500;font-size:11px">📱 ${x.telefone}</div><div style="font-size:10px;color:var(--g)">${x.ultima_mensagem||x.itens||'Aguardando'}</div><button class="btn bv" style="margin-top:4px;width:100%;font-size:10px" onclick="liberarAtend('${x.telefone}')">✅ Liberar Atendimento</button></div>`).join('')}else{badge.style.display='none';document.getElementById('popup-atend').classList.remove('show')}}catch(e){}}
 async function liberarAtend(t){try{await api(`/api/atendimento-pendente/${t}/liberar`,{method:'POST'});nt('✅ Liberado!');checarAtendimento()}catch(e){nt('Erro',true)}}
 
 // ===== KANBAN =====
