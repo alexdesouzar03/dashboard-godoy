@@ -252,8 +252,11 @@ app.get('/api/atendimento-pendente', async (req, res) => {
 });
 
 app.post('/api/atendimento-pendente/:telefone/liberar', async (req, res) => {
-  try { await pool.query("UPDATE estado_pedido SET aguardando_atendente=FALSE,etapa='idle',atualizado_em=NOW() WHERE telefone=$1",[req.params.telefone]); res.json({success:true}); }
-  catch(e) { res.status(500).json({error:e.message}); }
+  try {
+    await pool.query("DELETE FROM estado_pedido WHERE telefone=$1",[req.params.telefone]);
+    await enviarWA(req.params.telefone, 'Obrigado por aguardar! 😊\n\nSeu atendimento foi finalizado. Se precisar de algo mais, é só me chamar!\n\nDigite *menu* para ver as opções.');
+    res.json({success:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
 });
 
 // ===== COMBOS =====
