@@ -21,6 +21,16 @@ async function enviarWA(tel, msg) {
 async function regHist(pid,acao,desc,ant,nov) {
   try { await pool.query('INSERT INTO historico_pedidos(pedido_id,acao,descricao,dados_anteriores,dados_novos)VALUES($1,$2,$3,$4,$5)',[pid,acao,desc,JSON.stringify(ant||{}),JSON.stringify(nov||{})]); } catch(e) {}
 }
+function logPedidoParcial(evento, dados = {}) {
+  const base = {
+    evento,
+    telefone: dados.telefone || null,
+    status: dados.status || null,
+    tipo_kanban: dados.tipo_kanban || null,
+    tipo: dados.tipo || null
+  };
+  console.log('[pedidos/parcial]', JSON.stringify({ ...base, ...dados }));
+}
 
 // ===== AUTENTICAÇÃO =====
 // Middleware de autenticação — só protege /api/ (exceto rotas públicas)
@@ -208,7 +218,77 @@ app.post('/api/pedidos/parcial', async (req, res) => {
     tipo
   } = req.body;
 
+  const telefoneNormalizado = String(telefone || '').replace(/\D/g, '').trim();
+  const nomeClienteNormalizado = String(nome_cliente || '').trim();
+  const itensNormalizados = typeof itens === 'string'
+    ? itens.trim()
+    : Array.isArray(itens)
+      ? itens.map(i => String(i || '').trim()).filter(Boolean).join('\n')
+      : '';
+  const observacoesNormalizadas = observacoes == null ? null : String(observacoes).trim();
+  const statusNormalizado = String(status || 'aguardando_pagamento').trim();
+  const tipoKanbanNormalizado = String(tipo_kanban || 'agendado').trim();
+  const formaPagamentoNormalizada = String(forma_pagamento || 'Pix').trim();
+  const tipoNormalizado = String(tipo || 'retirada').trim();
+  const camposObrigatorios = [];
+
+  if (!telefoneNormalizado) camposObrigatorios.push('telefone');
+  if (!nomeClienteNormalizado) camposObrigatorios.push('nome_cliente');
+  if (!itensNormalizados) camposObrigatorios.push('itens');
+
+  const statusPermitidos = new Set(['aguardando_horario', 'aguardando_pagamento']);
+  const tiposKanbanPermitidos = new Set(['imediato', 'agendado']);
+  const tiposPermitidos = new Set(['retirada', 'entrega']);
+
+  if (camposObrigatorios.length) {
+    logPedidoParcial('payload_invalido', {
+      telefone: telefoneNormalizado,
+      status: statusNormalizado,
+      tipo_kanban: tipoKanbanNormalizado,
+      tipo: tipoNormalizado,
+      motivo: 'campos_obrigatorios_ausentes',
+      campos: camposObrigatorios
+    });
+    return res.status(400).json({
+      error: 'Payload inválido para sincronização de pedido',
+      missing_fields: camposObrigatorios
+    });
+  }
+
+  if (!statusPermitidos.has(statusNormalizado)) {
+    return res.status(400).json({
+      error: 'Status inválido para sincronização de pedido',
+      allowed_status: Array.from(statusPermitidos)
+    });
+  }
+
+  if (!tiposKanbanPermitidos.has(tipoKanbanNormalizado)) {
+    return res.status(400).json({
+      error: 'tipo_kanban inválido para sincronização de pedido',
+      allowed_tipo_kanban: Array.from(tiposKanbanPermitidos)
+    });
+  }
+
+  if (!tiposPermitidos.has(tipoNormalizado)) {
+    return res.status(400).json({
+      error: 'tipo inválido para sincronização de pedido',
+      allowed_tipo: Array.from(tiposPermitidos)
+    });
+  }
+
+  const payloadLog = {
+    telefone: telefoneNormalizado,
+    status: statusNormalizado,
+    tipo_kanban: tipoKanbanNormalizado,
+    tipo: tipoNormalizado,
+    nome_cliente: nomeClienteNormalizado,
+    itens_preview: itensNormalizados.slice(0, 120),
+    data_agendamento: data_agendamento || null
+  };
+
   try {
+    logPedidoParcial('upsert_inicio', payloadLog);
+
     const ex = await pool.query(
       `SELECT id
        FROM pedidos
@@ -216,7 +296,7 @@ app.post('/api/pedidos/parcial', async (req, res) => {
          AND status IN ('aguardando_horario', 'aguardando_pagamento')
        ORDER BY id DESC
        LIMIT 1`,
-      [telefone]
+      [telefoneNormalizado]
     );
 
     if (ex.rows.length) {
@@ -235,23 +315,22 @@ app.post('/api/pedidos/parcial', async (req, res) => {
              tipo = COALESCE($9, tipo)
          WHERE id = $10`,
         [
-          nome_cliente || null,
-          itens || null,
-          observacoes || null,
-          status || 'aguardando_pagamento',
-          tipo_kanban || 'agendado',
+          nomeClienteNormalizado || null,
+          itensNormalizados || null,
+          observacoesNormalizadas,
+          statusNormalizado,
+          tipoKanbanNormalizado,
           data_agendamento || null,
           valor_total || null,
-          forma_pagamento || 'Pix',
-          tipo || 'retirada',
+          formaPagamentoNormalizada,
+          tipoNormalizado,
           pedidoId
         ]
       );
 
+      logPedidoParcial('upsert_update', { ...payloadLog, pedido_id: pedidoId });
       return res.json({ success: true, id: pedidoId });
     }
-
-    const tk = tipo_kanban || 'agendado';
 
     const r = await pool.query(
       `INSERT INTO pedidos(
@@ -269,21 +348,23 @@ app.post('/api/pedidos/parcial', async (req, res) => {
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
       RETURNING id`,
       [
-        telefone,
-        nome_cliente,
-        itens,
-        observacoes,
-        status || 'aguardando_pagamento',
-        tk,
+        telefoneNormalizado,
+        nomeClienteNormalizado,
+        itensNormalizados,
+        observacoesNormalizadas,
+        statusNormalizado,
+        tipoKanbanNormalizado,
         data_agendamento || null,
         valor_total || null,
-        forma_pagamento || 'Pix',
-        tipo || 'retirada'
+        formaPagamentoNormalizada,
+        tipoNormalizado
       ]
     );
 
+    logPedidoParcial('upsert_insert', { ...payloadLog, pedido_id: r.rows[0].id });
     res.json({ success: true, id: r.rows[0].id });
   } catch (e) {
+    console.error('[pedidos/parcial] erro_upsert', e.message, payloadLog);
     res.status(500).json({ error: e.message });
   }
 });
