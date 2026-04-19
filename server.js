@@ -195,14 +195,97 @@ app.get('/api/pedidos/:id/historico', async (req, res) => {
 });
 
 app.post('/api/pedidos/parcial', async (req, res) => {
-  const {telefone,nome_cliente,itens,observacoes,status,tipo_kanban}=req.body;
+  const {
+    telefone,
+    nome_cliente,
+    itens,
+    observacoes,
+    status,
+    tipo_kanban,
+    data_agendamento,
+    valor_total,
+    forma_pagamento,
+    tipo
+  } = req.body;
+
   try {
-    const ex=await pool.query("SELECT id FROM pedidos WHERE telefone=$1 AND status='aguardando_horario'",[telefone]);
-    if(ex.rows.length) return res.json({success:true,id:ex.rows[0].id});
-    const tk = tipo_kanban || 'imediato'; // padrão agendado pois vem do fluxo de encomendas
-    const r=await pool.query('INSERT INTO pedidos(telefone,nome_cliente,itens,observacoes,status,tipo_kanban,criado_em)VALUES($1,$2,$3,$4,$5,$6,NOW())RETURNING id',[telefone,nome_cliente,itens,observacoes,status||'aguardando_horario',tk]);
-    res.json({success:true,id:r.rows[0].id});
-  } catch(e) { res.status(500).json({error:e.message}); }
+    const ex = await pool.query(
+      `SELECT id
+       FROM pedidos
+       WHERE telefone = $1
+         AND status IN ('aguardando_horario', 'aguardando_pagamento')
+       ORDER BY id DESC
+       LIMIT 1`,
+      [telefone]
+    );
+
+    if (ex.rows.length) {
+      const pedidoId = ex.rows[0].id;
+
+      await pool.query(
+        `UPDATE pedidos
+         SET nome_cliente = COALESCE($1, nome_cliente),
+             itens = COALESCE($2, itens),
+             observacoes = COALESCE($3, observacoes),
+             status = COALESCE($4, status),
+             tipo_kanban = COALESCE($5, tipo_kanban),
+             data_agendamento = COALESCE($6, data_agendamento),
+             valor_total = COALESCE($7, valor_total),
+             forma_pagamento = COALESCE($8, forma_pagamento),
+             tipo = COALESCE($9, tipo)
+         WHERE id = $10`,
+        [
+          nome_cliente || null,
+          itens || null,
+          observacoes || null,
+          status || 'aguardando_pagamento',
+          tipo_kanban || 'agendado',
+          data_agendamento || null,
+          valor_total || null,
+          forma_pagamento || 'Pix',
+          tipo || 'retirada',
+          pedidoId
+        ]
+      );
+
+      return res.json({ success: true, id: pedidoId });
+    }
+
+    const tk = tipo_kanban || 'agendado';
+
+    const r = await pool.query(
+      `INSERT INTO pedidos(
+        telefone,
+        nome_cliente,
+        itens,
+        observacoes,
+        status,
+        tipo_kanban,
+        data_agendamento,
+        valor_total,
+        forma_pagamento,
+        tipo,
+        criado_em
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+      RETURNING id`,
+      [
+        telefone,
+        nome_cliente,
+        itens,
+        observacoes,
+        status || 'aguardando_pagamento',
+        tk,
+        data_agendamento || null,
+        valor_total || null,
+        forma_pagamento || 'Pix',
+        tipo || 'retirada'
+      ]
+    );
+
+    res.json({ success: true, id: r.rows[0].id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/pedidos/:id/confirmar-horario', async (req, res) => {
